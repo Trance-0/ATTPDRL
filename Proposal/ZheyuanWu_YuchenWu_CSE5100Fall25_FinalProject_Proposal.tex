@@ -1,0 +1,66 @@
+% Debugged LaTeX Template
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in,a4paper]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+
+\title{Autonomous Parking with DRL}
+\author{Zheyuan Wu,Yuchen Wu}
+\date{October 25, 2025}
+
+\begin{document}
+\maketitle
+
+\section{Project Description}
+
+The main problem of the project is to train an agent that controls a vehicle to park in the desired spot while avoiding collision with obstacles. This problem arises from the rapid development of autonomous vehicles. Compared to parking manually, autonomous parking not only saves time, but also achieves more compact parking spaces: it can significantly boost the operation efficiency of both private cars and commercial trucks. 
+
+We aim to train an agent that is able to park the vehicle in the target spot from any feasible starting position, under time or space constraints. We approach the problem by modeling it as an environment with continuous state space (position, angle, etc.) and discrete action space (steering, direction, etc.); then we will attempt to train the agent with two algorithms: DQN and PPO. While traditional studies often focus on the parking of cars, we will attempt to park trailer trucks, which have more complex mechanics than cars and are more common in industrial contexts. A real-world application of the problem would be autonomous parking of trailer trucks to facilitate efficient cargo loading and unloading. To start with, we aim to train the agent to back a trailer truck straight into a parking spot that is directly behind it (this is easy for cars, but tricky for trailer trucks).
+
+\section{Existing Literature}
+
+\begin{itemize}
+    \item \textbf{Deep Reinforcement Learning and Imitation Learning for Autonomous Parallel Parking} \\
+    \url{https://ikee.lib.auth.gr/record/356581/files/GRI-2024-44218.pdf}
+    \item \textbf{Model-Based Reinforcement Learning for Truck Trailer Robotics Vehicle’s Trajectory Planning and Control} \\
+    \url{https://www.proquest.com/docview/3160658827?pq-origsite=gscholar&fromopenview=true&sourcetype=Dissertations\%20\&\%20Theses}
+\end{itemize}
+
+Different from these existing works, we will attempt to solve the parking problem with tighter time and space constraints, in order to maximize the time and space efficiency of parking.
+
+\section{Deliverables}
+
+We will deliver a report and a video demonstration of the agent's performance. Through simulations like gymnasium, we will evaluate the performance of the agent and compare it with the existing literature.
+
+There are few open source environments for autonomous parking, we will modify them to fit with the truck trailer parking problem under various constraints. For example, parallel parking with time, space, and angle constraints for each trailer truck.
+
+\begin{itemize}
+    \item \textbf{Parking Env} \\
+    \url{https://highway-env.farama.org/environments/parking/}
+    \item \textbf{Truck-Env and path planning} \\
+    \url{https://arxiv.org/html/2401.04980v1}
+    \item \textbf{Self Parking Truck Trailer via Anti-Jackknife Controller} \\
+    \url{https://github.com/MCastelyns/BEP-Motion-planning-for-Truck-Trailers}
+\end{itemize}
+
+\section{Required Resources}
+
+Consider the scale of the project can be done with gymnasium-like frameworks with moderate simulations. We will first try to implement the project with DQN and PPO on home computer. If the performance is not satisfactory, we will try to use the cloud resources to train the agent with more complicated algorithms.
+
+\section{Tentative Plan}
+
+\begin{itemize}
+    \item Week 1: Review the existing literature and the related works.
+    \item Week 2: implement the environment with gymnasium-like frameworks for trailer truck parking.
+    \item Week 3: train the agent with DQN and PPO on home computer.
+    \item Week 4: evaluate the performance of the agent and compare it with the existing literature.
+    \item Week 5: try to use the cloud resources to train the agent with more complicated algorithms or add more constraints to the environment to make it more robust and realistic to real-world applications.
+    \item Week 6: deliver the report and the video demonstration of the agent's performance.
+\end{itemize}
+
+\end{document}
