@@ -73,12 +73,12 @@ class VerticalParkingLot(ParkingLot):
         shapes2 = np.array([[self.x1,0],[self.x2,self.y0]])
         return shapes0,shapes1,shapes2
     
-    def draw(self,canvas:pygame.Surface,pixPerUnit:int):
+    def draw(self,canvas,pixPerUnit):
         x0s,x1s,x2s = self.getShapes()
         x3s = x1s+x2s-x0s
-        x0s *= pixPerUnit
-        x2s *= pixPerUnit
-        x3s *= pixPerUnit
-        x1s *= pixPerUnit
+        x0s = (x0s*pixPerUnit)
+        x2s = (x2s*pixPerUnit)
+        x3s = (x3s*pixPerUnit)
+        x1s = (x1s*pixPerUnit)
         for i in range(2):
             pygame.draw.polygon(canvas,[255,255,255],[x0s[i,:],x2s[i,:],x3s[i,:],x1s[i,:]],width=0)

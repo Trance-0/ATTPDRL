@@ -3,45 +3,43 @@ import pygame
 from gymnasium import spaces
 
 class Truck():
-    
-    h = 0.01 # time step to run the truck (differentiated path)
 
-    def __init__(self,maxSteer):
+    def __init__(self,maxSteer:float):
         assert 0<maxSteer and maxSteer<np.pi/2
         self.maxSteerAngle = maxSteer
         
     def reset(self):
-        pass
+        self.alpha = 0
     
-    def getObsSpace(self):
+    def getObsSpace(self) -> dict:
         return dict()
     
-    def getObs(self):
+    def getObs(self) -> dict:
         return dict()
     
     # get the rectangles representing the truck
-    def getShapes(self,c0,theta0) -> tuple[np.ndarray]:
+    def getShapes(self,c0:np.ndarray,theta0:float) -> tuple[np.ndarray]:
         return np.array([[0,0]]),np.array([[0,0]]),np.array([[0,0]])
     
     # monitored by the environment, thus self's method shoudn't use this
-    def isCollision(self):
+    def isCollision(self) -> bool:
         return False
     
     # drive the truck in direction dx, with steering angle alpha, with speed, for time
     # return d_c, d_theta; d_c is array([dxc,dyc])
-    def transition(self,c0,theta0,dx,alpha,speed,time):
+    def transition(self,c0:np.ndarray,theta0:float,dx:int,alpha:float,speed:float,h:float) -> tuple[np.ndarray,float]:
         return np.array([0,0]),0
     
-    def draw(self,c0,theta0,canvas:pygame.Surface,pixPerUnit:int):
-        pass
+    def draw(self,c0:np.ndarray,theta0:float,canvas:pygame.Surface,pixPerUnit:int):
+        return
 
     # points has shape (n,2). translate by c: array (2) and rotate by theta
-    def shape_transform(points:np.ndarray,c,theta) -> np.ndarray:
+    def shape_transform(points:np.ndarray,c:np.ndarray,theta:float) -> np.ndarray:
         resl = np.zeros_like(points)
         for i in range(points.shape[0]):
             x = points[i,0]
             y = points[i,1]
-            thetaNew = theta+np.arctan2(x,y)
+            thetaNew = theta+np.arctan2(y,x)
             resl[i,0] = c[0]+np.sqrt(x*x+y*y)*np.cos(thetaNew)
             resl[i,1] = c[1]+np.sqrt(x*x+y*y)*np.sin(thetaNew)
         return resl
@@ -49,14 +47,14 @@ class Truck():
 class TrailerTruck(Truck):
 
     # dimensions of the truck
-    la = 4
-    lb = 1
-    lc = 8
-    l0 = 1.5
+    la = 4.5
+    lb = 0.5
+    lc = 10
+    l0 = 1.2
     l1 = 0.5
-    l2 = 0.5
-    l3 = 0.5
-    l4 = 2
+    l2 = 0.4
+    l3 = 0.7
+    l4 = 1
 
     def __init__(self,maxSteer,maxTrailer):
         super().__init__(maxSteer)
@@ -88,38 +86,44 @@ class TrailerTruck(Truck):
     def isCollision(self):
         return abs(self.beta) >= self.maxTrailerAngle
     
-    def transition(self,c0,theta0,dx,alpha,speed,time):
+    def transition(self,c0,theta0,dx,alpha,speed,h):
+        self.alpha = np.sign(alpha)*min(abs(alpha),self.maxSteerAngle)
         # update beta for itself
         # return c and theta for the environment
         theta = theta0
         xc = c0[0]
         yc = c0[1]
         beta = self.beta
-        t = 0
-        while t < time:
-            # first compute time derivatives as buffer
-            d_theta = speed*np.tan(alpha)/(self.la+self.lb)
-            d_xc = speed*np.cos(theta)-self.lb*np.sin(theta)*d_theta
-            d_yc = speed*np.sin(theta)+self.lb*np.cos(theta)*d_theta
-            d_beta = (np.cos(theta-beta)*d_yc-np.sin(theta-beta)*d_xc)/self.lc
+        
+        # first compute time derivatives as buffer
+        d_theta = dx*speed*np.tan(self.alpha)/(self.la+self.lb)
+        d_xc = dx*speed*np.cos(theta)-self.lb*np.sin(theta)*d_theta
+        d_yc = dx*speed*np.sin(theta)+self.lb*np.cos(theta)*d_theta
+        d_beta = d_theta-dx*speed*np.sin(self.beta)/self.lc
 
-            theta += dx*self.h*d_theta
-            xc += dx*self.h*d_xc
-            yc += dx*self.h*d_yc
-            beta += dx*self.h*d_beta
+        theta += h*d_theta
+        xc += h*d_xc
+        yc += h*d_yc
+        beta += h*d_beta
 
-            t += self.h
         self.beta = beta
         return np.array([xc,yc]),theta
     
-    def draw(self,c0,theta0,canvas:pygame.Surface,pixPerUnit:int):
+    def draw(self,canvas,c0,theta0,pixPerUnit):
         x0s,x1s,x2s = self.getShapes(c0,theta0)
         x3s = x1s+x2s-x0s
-        x0s *= pixPerUnit
-        x2s *= pixPerUnit
-        x3s *= pixPerUnit
-        x1s *= pixPerUnit
+        x0s = (x0s*pixPerUnit)
+        x2s = (x2s*pixPerUnit)
+        x3s = (x3s*pixPerUnit)
+        x1s = (x1s*pixPerUnit)
         for i in range(2):
-            pygame.draw.polygon(canvas,[216,216,216],[x0s[i,:],x2s[i,:],x3s[i,:],x1s[i,:]],width=1)
+            pygame.draw.polygon(canvas,[64,64,64],[x0s[i,:],x2s[i,:],x3s[i,:],x1s[i,:]],width=2)
+        # also draw steering direction
+        _steer = np.array([[self.la,0],[self.la+self.l0*np.cos(self.alpha),self.l0*np.sin(self.alpha)]])
+        _steer = (Truck.shape_transform(_steer,c0,theta0)*pixPerUnit).astype(int)
+        pygame.draw.line(canvas,[96,96,96],_steer[0,:],_steer[1,:],width=2)
+        # also draw center
+        _center = (c0*pixPerUnit)
+        pygame.draw.circle(canvas,[32,32,32],_center,2)
 
     

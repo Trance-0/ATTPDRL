@@ -7,8 +7,6 @@ from envs.parkingLot import ParkingLot, VerticalParkingLot
 from envs.truck import Truck, TrailerTruck
 
 class TruckParkingEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 25}
-    window_size = 100
     
     # dimensions of the parking lot, meter
     xmax = 40
@@ -21,8 +19,9 @@ class TruckParkingEnv(gym.Env):
     truckParams = {'maxTrailer':np.pi*2/3}# the maximum angle between trailer and driver
 
     # running parameters
-    speed = 0.5 # constant speed, meter/s
-    timePerStep = 1 # truck run for this time before next state
+    speed = 0.8 # constant speed, meter/s
+    timePerStep = 10 # truck run for this time before next state
+    h = 0.01 # time step to run the truck (differentiated path)
     maxSteps = 200 # max number of steps per trajectory
     collisionReward = -100
     successReward = 100
@@ -36,6 +35,11 @@ class TruckParkingEnv(gym.Env):
     # reward function parameter
     time_penalty = 0.01
     reward_weights = np.array([0.1,0.01,1,0.5])
+
+    # for plotting
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 25*timePerStep}
+    window_size = 1000
+
 
     def __init__(self, render_mode=None):
         super().__init__()
@@ -106,9 +110,9 @@ class TruckParkingEnv(gym.Env):
         return obs
 
     # Generat step function, action ==  array([dx,alpha])
-    def step(self, action):
+    def step(self, action:dict) -> tuple[dict,float,bool,bool,dict]:
         # verify action validity
-        assert action[0] in [0,1] and action[1] in range(2*self.numSteerAngle+1)
+        assert action['move_direction'] in [0,1] and action['steer_angle'] in range(2*self.numSteerAngle+1)
 
         # reward is called on s,a
         reward = self._reward(action)
@@ -127,21 +131,28 @@ class TruckParkingEnv(gym.Env):
         return obs, reward, done, False, {}
     
     # R(s,a) with s being self and a == array([dx,alpha])
-    def _reward(self,action) -> float:
+    def _reward(self,action:dict) -> float:
         d_c = np.sum(np.abs(self.c-self.c_star))
         d_theta = abs(self.theta-self.theta_star)
-        d_dx = int(self.prev_dx != action[0])
-        d_alpha = self.prev_alpha-action[1]
+        d_dx = int(self.prev_dx != action['move_direction'])
+        d_alpha = self.prev_alpha-action['steer_angle']
         return -self.time_penalty-np.dot([d_c,(1-np.cos(d_theta))/(1+d_c),d_dx,d_alpha],self.reward_weights)
     
     # T(s,a) with s being self and a == array([dx,alpha]), modify self's variables and return nothing
-    def _transition(self,action):
+    def _transition(self,action:dict):
         # extract actions
-        dx = [-1,1][action[0]] # driving direction
-        alpha = -self.maxSteerAngle+action[1]*self.maxSteerAngle/self.numSteerAngle
+        dx = [-1,1][action['move_direction']] # driving direction
+        alpha = -self.maxSteerAngle+action['steer_angle']*self.maxSteerAngle/self.numSteerAngle
 
         # update c and theta, truck updates its own params
-        self.c,self.theta = self.truck.transition(self.c,self.theta,dx,alpha,self.speed,self.timePerStep)
+        t = 0
+        while t<self.timePerStep:
+            self.c,self.theta = self.truck.transition(self.c,self.theta,dx,alpha,self.speed,self.h)
+            t += self.h
+            # for plotting
+            if self.render_mode == "human":
+                self._render_frame()
+
         # update prev_dx and prev alpha
         self.prev_dx = dx
         self.prev_alpha = alpha
@@ -179,8 +190,8 @@ class TruckParkingEnv(gym.Env):
         canvas.fill((128, 128, 128))
 
         pixPerUnit = self.window_size/max(self.xmax,self.ymax)
-        self.parkingLot.draw(pixPerUnit)
-        self.truck.draw(self.c,self.theta,pixPerUnit)
+        self.parkingLot.draw(canvas,pixPerUnit)
+        self.truck.draw(canvas,self.c,self.theta,pixPerUnit)
 
         # flip at last, so that drawing can be done in typical coordinates
         canvas = pygame.transform.flip(canvas,False,True)
