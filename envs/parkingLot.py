@@ -1,0 +1,84 @@
+import numpy as np
+import pygame
+
+class ParkingLot():
+
+    def __init__(self,xm:float,ym:float,c_s:np.ndarray,theta_s:float):
+        # parking lot dimensions
+        assert xm >0 and ym >0
+        self.xmax = xm
+        self.ymax = ym
+
+        # target parking position
+        self.c_star = c_s
+        self.theta_star = theta_s
+
+        # ensure target position is valid
+        _c_star = self.c_star.reshape((1,2))
+        assert not self.isCollision(_c_star,_c_star,_c_star)
+
+    # use three points to represent a rectangle (parallelogram)
+    # p1
+    # |\
+    # | \
+    # |  \
+    # |   \
+    # |    \
+    # |_____\
+    # p0     p2
+    # p3 = p1+p2-p0
+
+    # determine whether a list of rectangles (parallelograms) will collide with the environment
+    # each array is shape (n,2)
+    def isCollision(self,p0s:np.ndarray,p1s:np.ndarray,p2s:np.ndarray) -> bool:
+        shape0 = p0s.shape
+        shape1 = p1s.shape
+        shape2 = p2s.shape
+        assert len(shape0)==2 and len(shape1)==2 and len(shape2)==2 and shape0[0] == shape1[0] and shape1[0] == shape2[0]
+        return False
+    
+    def getShapes(self) -> tuple[np.ndarray]:
+        return np.array([[0,0]]),np.array([[0,0]]),np.array([[0,0]])
+
+    def draw(self,canvas:pygame.Surface,pixPerUnit:int):
+        return
+
+class VerticalParkingLot(ParkingLot):
+
+    # dimensions of the parking lot
+    x0 = 18
+    x1 = 22
+    x2 = 40
+    y0 = 15
+    y1 = 40
+
+    def __init__(self, xm, ym, c_s, theta_s):
+        super().__init__(xm, ym, c_s, theta_s)
+        # in this case, we have y1==ymax and x1==xmax
+        self.x2 = xm
+        self.y1 = ym
+
+    def __str__(self):
+        return 'VerticalParkingLot: [',str(self.x2)+','+str(self.y1)+']'
+
+    def isCollision(self, p0s, p1s, p2s):
+        x0s,x1s,x2s = self.getShapes()
+        # Return False iff all rectangles identified by p0s,p1s,p2s are contained in x0s,x1s,x2s
+        # TODO
+        return False
+    
+    def getShapes(self):
+        shapes0 = np.array([[self.x0,0],[0,self.y0]])
+        shapes1 = np.array([[self.x0,self.y0],[0,self.y1]])
+        shapes2 = np.array([[self.x1,0],[self.x2,self.y0]])
+        return shapes0,shapes1,shapes2
+    
+    def draw(self,canvas:pygame.Surface,pixPerUnit:int):
+        x0s,x1s,x2s = self.getShapes()
+        x3s = x1s+x2s-x0s
+        x0s *= pixPerUnit
+        x2s *= pixPerUnit
+        x3s *= pixPerUnit
+        x1s *= pixPerUnit
+        for i in range(2):
+            pygame.draw.polygon(canvas,[255,255,255],[x0s[i,:],x2s[i,:],x3s[i,:],x1s[i,:]],width=0)
