@@ -44,7 +44,7 @@ class HalfEdge:
         """
         return self.twin_half_edge.origin_vertex
 
-def is_on_segment(point:tuple[float,float],segment:tuple[tuple[float,float],tuple[float,float]],tolerance:float=1e-6) -> bool:
+def is_on_segment(point:tuple[float,float],segment:tuple[tuple[float,float],tuple[float,float]],tolerance:float=1e-6,exclude_endpoints:bool=True) -> bool:
     """
     Check if the point is on the segment.
     Arguments:
@@ -56,9 +56,17 @@ def is_on_segment(point:tuple[float,float],segment:tuple[tuple[float,float],tupl
     """
     # solve algebraically
     (x1,y1),(x2,y2) = segment
+    if x1 == x2:
+        if exclude_endpoints:
+            return abs(x1-point[0]) < tolerance and min(y1,y2) <= point[1] <= max(y1,y2)
+        else:
+            return abs(x1-point[0]) < tolerance and min(y1,y2) < point[1] < max(y1,y2)
     a=(y2-y1)/(x2-x1)
     c=y1-a*x1
-    return abs(a*point[0]+c-point[1]) < tolerance and min(x1,x2) <= point[0] <= max(x1,x2) and min(y1,y2) <= point[1] <= max(y1,y2)
+    if exclude_endpoints:
+        return abs(a*point[0]+c-point[1]) < tolerance and min(x1,x2) <= point[0] <= max(x1,x2) and min(y1,y2) <= point[1] <= max(y1,y2)
+    else:
+        return abs(a*point[0]+c-point[1]) < tolerance and min(x1,x2) < point[0] < max(x1,x2) and min(y1,y2) < point[1] < max(y1,y2)
     
 def intersect(segment1,segment2) -> tuple[float,float] | None:
     """
@@ -127,7 +135,7 @@ def clean_segments(segments:list) -> list:
     segments = list(normalized_segments.values())
     return segments
 
-def line_segment_intersection(segments:list) -> list:
+def line_segment_intersection(segments:list, debug_level:int=0) -> list:
     """
     Report all vertices given the format defined as:
     dict(p:L(p),U(p),C(p))
@@ -139,36 +147,70 @@ def line_segment_intersection(segments:list) -> list:
     Later, we will use this function to extend that to creating the planner subdivision.
     Arguments:
         segments: a list of line segments, each segment is a tuple of (start,end)
+        debug_level: an integer of the debug level, 0 for no debug, 1 for debug with each intersection point, 2 for debug with each event.
     Returns:
         A list of intersection points.
     """
+    if debug_level > 0:
+        print(f"Debug level: {debug_level}")
     clean_segments(segments)
     # initialize the vertices dictionary
     vertices = collections.defaultdict(list)
+    # helper dict to store previous intersecting points for each segment, helpful to rebuild partial segments.
+    cut_by_segment = collections.defaultdict(list)
+    # helper dict to store gradient of each segment, only compute once.
+    gradient_by_segment = collections.defaultdict(float)
     # store the event points, sorted by increasing y coordinate
-    # contents: (y,x,segment,event_type)
+    # contents: (y,x,segment,event_type) x,y may be coordinates of intersection points.
     event_queue = []
+    def print_event_queue() -> None:
+        print(f"Event queue:")
+        for event in event_queue:
+            print(f"Event: y: {event[0]}, x: {event[1]}, segment: {event[2]}, event_type: {event[3]}, cut by segment: {cut_by_segment[event[2]]}")
     # store the intersecting edges with the sweep line, sorted by increasing x, if have same x, then sort by segment angle with -x axis
-    # contents: (x,-x axis angle,segment)
+    # contents: (x,-x axis angle,intersecting segment) x may be the coordinate of intersection points.
+    # note that intersecting segment is the generated half-edges 
+    # (intersecting point or start above, intersecting point or end below). 
+    # Status should be event-type-free.
     status = SortedList()
-    def find_new_events(segment1, segment2, p:tuple[float,float]) -> list:
+    def print_status() -> None:
+        print(f"Status:")
+        for entry in status:
+            print(f"Entry: x: {entry[0]}, -x gradient: {entry[1]}, intersecting segment: {entry[2]}")
+    def find_new_events(segment1, segment2, source1, source2, p:tuple[float,float]):
         """
         Insert new events based on the intersection of two segments and validate by current processing point p
         This function is not supposed to alter the status list.
         Arguments:
-            segment1: a tuple of (start,end)
-            segment2: a tuple of (start,end)
+            segment1: a tuple of (start,end), it is a subsegment of the original segment1
+            segment2: a tuple of (start,end), it is a subsegment of the original segment2
+            source1: a tuple of (start,end), it is the original segment1
+            source2: a tuple of (start,end), it is the original segment2
             p: a tuple of (x,y)
         """
-        intersect_x,intersect_y = intersect(segment1,segment2)
-        # add new events if 
-        # 1. the intersection with the same y coordinate is on the right side of the current processing point
-        # 2. the intersection is above the current processing point
-        if intersect_x is not None and (intersect_x > p[0] or (intersect_x == p[0] and intersect_y > p[1])):
+        sec_p=intersect(segment1,segment2)
+        if sec_p:
+            intersect_x,intersect_y = sec_p
+            # add new events if 
+            # 1. the intersection with the same y coordinate is on the right side of the current processing point
+            # 2. the intersection is above the current processing point
+            if intersect_y<p[1] or (intersect_y==p[1] and intersect_x<p[0]):
+                return
+            if debug_level > 1:
+                print(f"New event: {intersect_x,intersect_y} for edges {segment1} and {segment2}")
+            # divide the segment into two new segments at the intersection point
+            new_segment1 = (segment1[0],(intersect_x,intersect_y))
+            new_segment2 = (segment2[0],(intersect_x,intersect_y))
+            # checkout stale status list (insert, remove) and insert the current truncated segments back
+            status.discard((segment1[0][0],negative_x_axis_angle(segment1[0],segment1[1]),segment1))
+            status.discard((segment1[0][0],negative_x_axis_angle(segment1[0],segment1[1]),segment1))
+            status.add((segment1[0][0],negative_x_axis_angle(new_segment1[0],new_segment1[1]),new_segment1))
+            status.add((segment2[0][0],negative_x_axis_angle(new_segment2[0],new_segment2[1]),new_segment2))
             # we don't need -x axis angle here because each vertex will be processed together
-            heappush(event_queue, (intersect_y,intersect_x,segment1,'intersect'))
-            heappush(event_queue, (intersect_y,intersect_x,segment2,'intersect'))
-        return []
+            if debug_level > 1:
+                print(f"New event: {intersect_x,intersect_y} for edges {segment1} and {segment2}")
+            heappush(event_queue, (intersect_y,intersect_x,source1,'intersect'))
+            heappush(event_queue, (intersect_y,intersect_x,source2,'intersect'))
     def handle_event(event:tuple) -> None:
         """
         Handle an event.
@@ -177,7 +219,7 @@ def line_segment_intersection(segments:list) -> list:
         """
         y,x,segment,event_type = event
         # 1. extract all the events containing (x,y)
-        Lp,Up,Cp = [],[],[]
+        Lp,Up,Cp = set(),set(),set()
         def assign_group(event_type:str,segment:tuple) -> None:
             """
             Assign the segment to the corresponding group.
@@ -186,49 +228,100 @@ def line_segment_intersection(segments:list) -> list:
                 segment: a tuple of (start,end)
             """
             if event_type == 'insert':
-                Lp.append(segment)
+                Lp.add(segment)
             elif event_type == 'remove':
-                Up.append(segment)
+                Up.add(segment)
             elif event_type == 'intersect':
-                Cp.append(segment)
+                Cp.add(segment)
             else:
                 raise ValueError(f"Invalid event type: {event_type}")
         # assign the current event
+        if debug_level > 0:
+            print(f"Capture initial event: {y,x,segment,event_type}")
         assign_group(event_type,segment)
         # 2. extract all the events containing (x,y)
         while event_queue and event_queue[0][0] == y and event_queue[0][1] == x:
             y,x,segment,event_type = heappop(event_queue)
+            if debug_level > 0:
+                print(f"Capture additional event: {y,x,segment,event_type}")
             assign_group(event_type,segment)
         # 3. update the vertices dictionary
-        vertices[x] = Lp,Up,Cp
+        vertices[(x,y)] = list(Lp),list(Up),list(Cp)
+        if debug_level > 0:
+            print(f"Event registration done, AsVertices: {(x,y)}, categories: {Lp,Up,Cp}")
         # 4. Delete Up (already visited) and Cp (already handled) from status
         for segment in Up:
-            start,end = segment
+            if debug_level > 0:
+                print(f"Discard Up segment: {segment}")
+            _,end = segment
             assert end == (x,y), f"Up segment {segment} is not at ({x},{y})"
-            status.discard((start[0],negative_x_axis_angle(start,end),(start,end)))
+            resolve_entry=(cut_by_segment[segment][-1][0],gradient_by_segment[segment],(cut_by_segment[segment][-1],end))
+            assert resolve_entry in status, f"Up segment {segment} is not in status, status is {status}, where resolve_entry is {resolve_entry}, cut_by_segment is {cut_by_segment}, gradient_by_segment is {gradient_by_segment}"
+            status.discard(resolve_entry)
         for segment in Cp:
-            start,end = segment
+            if debug_level > 0:
+                print(f"Discard Cp segment: {segment}, current cut by segment: {cut_by_segment[segment]}, total cut by segment: {cut_by_segment}")
+            _,end = segment
             assert is_on_segment((x,y),segment), f"Cp segment {segment} is not at ({x},{y})"
+            status.discard((cut_by_segment[segment][-1][0],gradient_by_segment[segment],(cut_by_segment[segment][-1],end)))
             # do not remove since detecting new event did not alter the status list
         # 5. Insert Lp (newly inserted) and Cp (reversing order) into status
+        # 6.1 record the min and max of newly inserted statuses
+        nsl,nsr=None,None
         for segment in Lp:
+            # insert cut point
+            cut_by_segment[segment].append((x,y))
+            if debug_level > 0:
+                print(f"Insert Lp segment: {segment}")
             start,end = segment
-            status.add((end[0],negative_x_axis_angle(start,end),(start,end)))
+            assert cut_by_segment[segment][-1] == start, f"If you see this error, it means you status management is incorrect, expecting insertion to have prev status to be the start point."
+            new_status = (x,gradient_by_segment[segment],(cut_by_segment[segment][-1],end))
+            status.add(new_status)
+            if nsl is None or nsl > (new_status,segment):
+                nsl = (new_status,segment)
+            if nsr is None or nsr < (new_status,segment):
+                nsr = (new_status,segment)
+        for segment in Cp:
+            # insert cut point
+            cut_by_segment[segment].append((x,y))
+            if debug_level > 0:
+                print(f"Insert Cp segment: {segment}, current cut by segment: {cut_by_segment[segment]}")
+            _,end = segment 
+            new_status = (x,gradient_by_segment[segment],(cut_by_segment[segment][-1],end))
+            status.add(new_status)
+            if nsl is None or nsl > (new_status,segment):
+                nsl = (new_status,segment)
+            if nsr is None or nsr < (new_status,segment):
+                nsr = (new_status,segment)
         # 6. Maintain the new events
+        if debug_level > 0:
+            print(f"New status list:")
+            print_status()
+            print(f"Finding new events... nsl: {nsl}, nsr: {nsr}")
         # Check if the point is end node only
-        # TODO: start here to implement the remaining intersection detection logic
-        if len(Up) == 0 and len(Cp) == 0:
-            sl,sr=status.bisect_left((x,0)),status.bisect_right((x,0))
-            find_new_events(status[sl-1][2],status[sr][2],(x,y))
+        if nsl is None:
+            # in this case, pop event must occurs. And no entry with x left.
+            sl_index=status.bisect_left((x,0,((0,0),(0,0))))
+            if sl_index >0 and sl_index < len(status):
+                sl,sr=status[sl_index-1],status[sl_index]
+                find_new_events(sl[2],sr[2],(x,y))
         else:
-            sl,sr=status.bisect_left((x,0)),status.bisect_right((x,0))
-            nsl,nsr=status.bisect_left((x,0)),status.bisect_right((x,0))
-            find_new_events(status[sl][2],status[sr-1][2],(x,y))
-            find_new_events(status[nsl][2],status[nsr-1][2],(x,y))
+            # retrieve the entries of inserted statuses
+            # nsl_k is the lowest entry in status list, nsl_segment is the segment that corresponds to the lowest entry
+            # nsr_k is the highest entry in status list, nsr_segment is the segment that corresponds to the highest entry
+            nsl_k,nsl_segment = nsl
+            nsr_k,nsr_segment = nsr
+            sl_index,sr_index=status.bisect_left(nsl_k),status.bisect_left(nsr_k)
+            if sl_index>0:
+                find_new_events(status[sl_index-1][2],status[sl_index][2],nsl_segment,nsl_segment,(x,y))
+            if sr_index<len(status)-1:
+                find_new_events(status[sr_index][2],status[sr_index+1][2],nsr_segment,nsr_segment,(x,y))
     # assign insertion events
     for start,end in segments:
         heappush(event_queue, (start[1],start[0],(start,end),'insert'))
-        status.add((start[0],negative_x_axis_angle(start,end),(start,end)))
+        gradient_by_segment[(start,end)] = negative_x_axis_angle(start,end)
+        heappush(event_queue, (end[1],end[0],(start,end),'remove'))
+    # main function, easy huh?
     while event_queue:
         handle_event(heappop(event_queue))
     return vertices
@@ -243,70 +336,7 @@ def get_planner_subdivision(segments:list) -> tuple[set,list]:
         vertices: a set of vertices (unordered)
         half_edges: a list of half-edges (unordered)
     """
-    
-    vertices = set()
-    half_edges = []
-    # algorithm starts here
-    # manage all events, sorted by increasing y coordinate, sweeping the edges from bottom to top.
-    events = []
-    # initialized insert events, sorted by increasing y coordinate, increasing x coordinate and increasing gradient.
-    for segment in segments:
-        x1,y1,x2,y2 = segment
-        gradient = (y2-y1)/(x2-x1)
-        heappush(events, (y1,x1,gradient,segment,'insert'))
-    # manage all segments intersecting with the sweep line, sorted by their x coordinate
-    sweep_line = SortedList()
-    while events:
-        # each event is a tuple of (y,x,gradient,segments,event_type)
-        y,x,gradient,segments,event_type = heappop(events)
-        if event_type == 'insert':
-            segment=segments[0]
-            x1,y1,x2,y2 = segment
-            # check position of new segment
-            position = sweep_line.bisect_left((y1,segment))
-            # insert the segment into the sweep line
-            sweep_line.add((y,segment))
-            # test if the segment is intersect with the segment at position
-            if gradient > 0:
-                # the segment is upward, then check lower x segment
-                if position == 0: continue
-                _,lower_segment = sweep_line[position-1]
-                px1,py1,px2,py2 = lower_segment
-                intersect_x,intersect_y = intersect((px1,py1,px2,py2),(x1,y1,x2,y2))
-                # WARNING: consider the equal case, especially when multiple segments are at the same y coordinate.
-                # maybe multiple events should be handled at the same time.
-                if intersect_x is not None and intersect_x > px1 and intersect_x < px2:
-                    heappush(events, (intersect_y,(segment,lower_segment),'intersect'))
-            else:
-                # the segment is downward, then check upper x segment
-                if position < len(sweep_line)-1:
-                    _,upper_segment = sweep_line[position+1]
-                    px1,py1,px2,py2 = upper_segment
-                    intersect_x,intersect_y = intersect((px1,py1,px2,py2),(x1,y1,x2,y2))
-                    if intersect_x is not None and intersect_x > px1 and intersect_x < px2:
-                        heappush(events, (intersect_y,(segment,upper_segment),'intersect'))
-        elif event_type == 'intersect':
-            segment1,segment2 = segments
-            px1,py1,px2,py2 = segment1
-            px3,py3,px4,py4 = segment2
-            intersect_x,intersect_y = intersect((px1,py1,px2,py2),(px3,py3,px4,py4))
-            if intersect_x is not None:
-                heappush(events, (intersect_y,(segment1,segment2),'insert'))
-        elif event_type == 'remove':
-            # true segments should only be created on remove events
-            # consider cases
-            # \     /
-            #  \/  /
-            #  - - - - -
-            #  /\ /
-            #  - - - - -
-            #    /\
-            segment=segments[0]
-            # remove the segment from the sweep line
-            sweep_line.discard((y,segment))
-        else:
-            raise ValueError(f"Invalid event type: {event_type}")
-    return vertices,half_edges
+    vertices = line_segment_intersection(segments)
 
 # simple function tests
 if __name__ == "__main__":
@@ -320,17 +350,27 @@ if __name__ == "__main__":
         start = (random.uniform(-10,10),random.uniform(-10,10))
         end = (random.uniform(-10,10),random.uniform(-10,10))
         segments.append((start,end))
+        
+    # special non-trivial test case:
+    segments = [((3.0,1.0),(5.0,5.0)),
+                ((4.0,0.0),(4.0,5.0)),
+                ((6.0,1.0),(4.0,3.0)),
+                ((7.0,1.0),(8.0,4.0)),
+                ((2.0,3.0),(1.0,5.0)),
+                ((4.0,3.0),(3.0,5.0)),
+                ((4.0,3.0),(0.0,5.0))]
+    n=len(segments)
     ##########################################################
-    # function tests for `intersect` function
-    intersections = []
-    for i in range(n-1):
-        for j in range(i+1,n):
-            if intersect(segments[i],segments[j]) is not None:
-                intersections.append(intersect(segments[i],segments[j]))
-    for segment in segments:
-        plt.plot([segment[0][0],segment[1][0]], [segment[0][1],segment[1][1]])
-    plt.scatter([x for x,y in intersections], [y for x,y in intersections])
-    plt.show()
+    # function tests for `intersect` function, brute force n^2 algorithm
+    # intersections = []
+    # for i in range(n-1):
+    #     for j in range(i+1,n):
+    #         if intersect(segments[i],segments[j]) is not None:
+    #             intersections.append(intersect(segments[i],segments[j]))
+    # for segment in segments:
+    #     plt.plot([segment[0][0],segment[1][0]], [segment[0][1],segment[1][1]])
+    # plt.scatter([x for x,y in intersections], [y for x,y in intersections])
+    # plt.show()
     ##########################################################
     # # function tests for `negative_x_axis_angle` function
     # angles = []
@@ -340,3 +380,13 @@ if __name__ == "__main__":
     #     plt.plot([segment[0][0],segment[1][0]], [segment[0][1],segment[1][1]],label=f"angle {angles[i]/math.pi*180}°")
     # plt.legend()
     # plt.show()
+    ##########################################################
+    # function tests for `line_segment_intersection` function, expected O(nlogn) algorithm
+    for segment in segments:
+        plt.plot([segment[0][0],segment[1][0]], [segment[0][1],segment[1][1]],color='blue')
+    vertices = line_segment_intersection(segments,debug_level=2)
+    for k,v in vertices.items():
+        # plot intersecting segments only
+        for segment in v[2]:
+            plt.plot([segment[0][0],segment[1][0]], [segment[0][1],segment[1][1]],color='red',linestyle='dashed')
+    plt.show()
