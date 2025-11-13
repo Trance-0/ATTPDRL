@@ -1,9 +1,12 @@
 import numpy as np
 import pygame
+from shapely import Polygon
 
 from envs.dcel import parking_adapter
 
 class ParkingLot():
+
+    USE_THIRD_PARTY_MODULE = False
 
     def __init__(self,xm:float,ym:float,c_s:np.ndarray,theta_s:float):
         # parking lot dimensions
@@ -61,6 +64,15 @@ class VerticalParkingLot(ParkingLot):
 
     def isCollision(self, r0s, r1s, r2s):
         x0s,x1s,x2s = self.getShapes()
+        
+        if ParkingLot.USE_THIRD_PARTY_MODULE:
+            r3s = r1s+r2s-r0s
+            parking_poly = Polygon([(0,self.y0),(self.x0,self.y0),(self.x0,0),(self.x1,0),(self.x1,self.y0),(self.x2,self.y0),(self.x2,self.y1),(0,self.y1)])
+            truck_polys = [Polygon([r0s[i],r2s[i],r3s[i],r1s[i]]) for i in range(r0s.shape[0])]
+            for truck_poly in truck_polys:
+                if not parking_poly.contains(truck_poly):
+                    return True
+            return False
         # Return False iff all rectangles identified by p0s,p1s,p2s are contained in x0s,x1s,x2s
         # TODO: can you parse the segments for me? I got [[[20 11]]
 #  [[20 11]]] [[[20 11]]
