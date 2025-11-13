@@ -89,6 +89,10 @@ class TruckParkingEnv(gym.Env):
             self.prev_alpha = 0 # default to start parking with straight angle
             self.truck.reset()
 
+            # ensure target position is valid
+            x0s,x1s,x2s = self.truck.getShapes(self.c_star,self.theta_star)
+            assert not self.parkingLot.isCollision(x0s,x1s,x2s)
+
             self.steps = 0
             valid = not self._isTerminal()[0]
         obs = self._get_obs()

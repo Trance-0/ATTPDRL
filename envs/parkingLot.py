@@ -15,10 +15,6 @@ class ParkingLot():
         self.c_star = c_s
         self.theta_star = theta_s
 
-        # ensure target position is valid
-        _c_star = self.c_star.reshape((1,2))
-        assert not self.isCollision(_c_star,_c_star,_c_star)
-
     # use three points to represent a rectangle (parallelogram)
     # p1
     # |\
