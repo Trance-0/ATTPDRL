@@ -121,11 +121,14 @@ class TruckParkingEnv(gym.Env):
         # reward is called on s,a
         reward = self._reward(action)
         # update self to s' from s,a
-        self._transition(action)
+        halfway_collision = self._transition(action)
         obs = self._get_obs()
         # isTerminal is called on s'
         done,extraReward = self._isTerminal()
         reward += extraReward
+        if halfway_collision:
+            done = True
+            reward += self.collisionReward
         self.steps += 1
 
         # for plotting
@@ -150,9 +153,17 @@ class TruckParkingEnv(gym.Env):
 
         # update c and theta, truck updates its own params
         t = 0
+        truck_trajectory = [[],[],[]]
         while t<self.timePerStep:
             self.c,self.theta = self.truck.transition(self.c,self.theta,dx,alpha,self.speed,self.h)
             t += self.h
+
+            x0s,x1s,x2s = self.truck.getShapes(self.c,self.theta)
+            for i in range(x0s.shape[0]):
+                truck_trajectory[0].append(x0s[i])
+                truck_trajectory[1].append(x1s[i])
+                truck_trajectory[2].append(x2s[i])
+
             # for plotting
             if self.render_mode == "human":
                 self._render_frame()
@@ -160,6 +171,9 @@ class TruckParkingEnv(gym.Env):
         # update prev_dx and prev alpha
         self.prev_dx = dx
         self.prev_alpha = alpha
+
+        halfway_collision = self.parkingLot.isCollision(*truck_trajectory)
+        return halfway_collision
     
     def _isTerminal(self) -> tuple[bool,float]:
         # return true if success or collision or too many steps
