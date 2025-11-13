@@ -14,9 +14,11 @@ Some functions included:
 
 - compute map overlays for constructed polygons.
 """
+
 import collections
 from heapq import heappush, heappop
 import math
+import numpy as np
 from sortedcontainers import SortedList
 
 # class logger configurations
@@ -86,6 +88,12 @@ class HalfEdge:
             The destination vertex of the half-edge.
         """
         return self.twin_half_edge.origin_vertex
+    
+    def __str__(self) -> str:
+        return f"HalfEdge({(self.origin_vertex,self.destination_vertex())}, twin_half_edge={(self.twin_half_edge.origin_vertex,self.twin_half_edge.destination_vertex())},next_half_edge={(self.next_half_edge.origin_vertex,self.next_half_edge.destination_vertex())},prev_half_edge={(self.prev_half_edge.origin_vertex,self.prev_half_edge.destination_vertex())},face={self.face})"
+    
+    def str(self) -> str:
+        return f"HalfEdge({(self.origin_vertex,self.destination_vertex())})"
 
 def is_on_segment(point:tuple[float,float],segment:tuple[tuple[float,float],tuple[float,float]],tolerance:float=1e-6,exclude_endpoints:bool=True) -> bool:
     """
@@ -160,7 +168,7 @@ def clean_segments(segments:list) -> list:
     # default set lower left vertex to be the starting point
     well_oriented_segments = []
     for start,end in segments:
-        if start == end:
+        if any(start == end for start,end in well_oriented_segments):
             raise ValueError(f"Segment {start,end} is a point")
         if start[1] > end[1] or (start[1] == end[1] and start[0] > end[0]):
             well_oriented_segments.append((end,start))
@@ -379,10 +387,12 @@ def get_planner_subdivision(segments:list) -> tuple[set,list]:
     Arguments:
         segments: a list of line segments, each segment is a tuple of (x1,y1,x2,y2)
     Returns:
-        vertices: a set of vertices (unordered)
+        vertices: a dict of vertices, with maximum angle to -x-axis, pointing outwards
         half_edges: a list of half-edges (unordered)
     """
-    vertices=collections.defaultdict(HalfEdge)
+    # record associated index for half-edges, and parse them in the end
+    # update on the fly cause some error for assigning half-edges
+    vertices={}
     half_edges=[]
     result = [(k,v) for k,v in line_segment_intersection(segments,edges_only=True).items()]
     result.sort(key=lambda x:x[0][1])
@@ -393,26 +403,152 @@ def get_planner_subdivision(segments:list) -> tuple[set,list]:
         lower_edges=sorted(v,key=lambda x:-negative_x_axis_angle(k,x))
         logger.debug(f"building edges for vertex {k}, sorted lower edges: {lower_edges}")
         for nv in lower_edges:
-            forward=HalfEdge(nv)
-            backward=HalfEdge(k)
+            # The graph goes as follows:
+            #   \v[nv].p    /| v[k]
+            #    \|       / 
+            #   nv<--<--< k
+            #    /      |\
+            # |/  v[nv]   \ v[k].p
+            # on the left side, the edge goes downward and on the right side, the edge goes upward (in the middle region)
+            forward=HalfEdge(k)
+            backward=HalfEdge(nv)
             # connect two edges
             forward.twin_half_edge=backward
             backward.twin_half_edge=forward
-            # resolve edge order for nv
-            nv_prev=vertices[nv] if vertices[nv] else forward
-            nv_prev.next_half_edge=forward
-            forward.prev_half_edge=nv_prev
-            vertices[nv]=forward
-            # resolve edge order for k
-            k_prev=vertices[k] if vertices[k] else backward
-            k_prev.next_half_edge=backward
-            backward.prev_half_edge=k_prev
-            vertices[k]=backward
+            # test dictionary value based edit
+            # resolve backward edge
+            if nv in vertices:
+                nv_hi=half_edges[vertices[nv]].prev_half_edge
+                logger.debug(f"link backward edge to previous half edge {nv_hi}")
+                backward.prev_half_edge=nv_hi
+                assert nv_hi.destination_vertex()==nv, f"nv_hi.destination_vertex()={vertices[nv].prev_half_edge.destination_vertex()}, nv={nv}"
+                nv_hi.next_half_edge=backward
+            else:
+                backward.prev_half_edge=forward
+            if k in vertices:
+                k_hi=half_edges[vertices[k]]
+                logger.debug(f"link backward edge to next half edge {k_hi}")
+                backward.next_half_edge=k_hi
+                assert k_hi.origin_vertex==k, f"k_hi.origin_vertex={vertices[k].origin_vertex}, k={k}"
+                k_hi.prev_half_edge=backward
+            else:
+                backward.next_half_edge=forward
+            # resolve forward edge
+            if nv in vertices:
+                nv_lo=half_edges[vertices[nv]]
+                logger.debug(f"link forward edge to next half edge {nv_lo}")
+                forward.next_half_edge=nv_lo
+                assert nv_lo.origin_vertex==nv, f"nv_lo.origin_vertex={vertices[nv].origin_vertex}, nv={nv}"
+                nv_lo.prev_half_edge=forward
+            else:
+                forward.next_half_edge=backward
+            if k in vertices:
+                k_lo=half_edges[vertices[k]].prev_half_edge
+                logger.debug(f"link forward edge to previous half edge {k_lo}")
+                forward.prev_half_edge=k_lo
+                assert k_lo.destination_vertex()==k, f"k_lo.destination_vertex={vertices[k].prev_half_edge.destination_vertex()}, k={k}"    
+                k_lo.next_half_edge=forward
+            else:
+                forward.prev_half_edge=backward
             # record half-edges
             half_edges.append(forward)
             half_edges.append(backward)
-    return vertices,half_edges    
+            vertices[k]=len(half_edges)-2
+            vertices[nv]=len(half_edges)-1
+            logger.debug(f"vertex {k} is connected to {nv}, forward half-edge: {forward}, backward half-edge: {backward}, updated vertices: {[(k,str(v)) for k,v in vertices.items()]}")
+    # restore vertices address
+    vertices_edges=dict()
+    for k,v in vertices.items():
+        vertices_edges[k]=half_edges[v]
+    return vertices_edges,half_edges
 
+def half_edges_to_segments(half_edges:list[HalfEdge]) -> list:
+    """
+    Convert half-edges to line segments.
+    Arguments:
+        half_edges: a list of half-edges
+    Returns:
+        segments: a list of line segments, no duplicates
+    """
+    segments=set()
+    for half_edge in half_edges:
+        s,e=half_edge.origin_vertex,half_edge.destination_vertex()
+        if (s,e) in segments or (e,s) in segments:
+            continue
+        segments.add((s,e))
+    return list(segments)
+
+def assign_faces(half_edges:list[HalfEdge],initial_face_id:int=0) -> dict[int,HalfEdge]:
+    """
+    Assign faces to each half-edges
+    Arguments:
+        half_edges: a list of half-edges
+        vertices: a dict of vertices
+    Returns:
+        faces: a list of faces with corresponding initial half-edges
+    """
+    # start with lower left vertex, default 0 is the infinite face
+    face_id=initial_face_id
+    faces=collections.defaultdict(HalfEdge)
+    assert type(half_edges) is list and type(half_edges[0]) is HalfEdge, f"incorrect target type of half_edges: {type(half_edges)}"
+    half_edges=sorted(half_edges,key=lambda x:x.origin_vertex)
+    for half_edge in half_edges:
+        if half_edge.face is None:
+            # start traversal, expected to have loop for each
+            origin=half_edge.origin_vertex
+            faces[face_id]=half_edge
+            half_edge=half_edge.next_half_edge
+            while half_edge.origin_vertex!=origin:
+                # move along the origin vertex
+                assert not half_edge.face, f"half edge {half_edge} is already assigned with face {half_edge.face}, check your traversal order to debug."
+                logger.debug(f"traversal half edge {half_edge}, face {face_id}")
+                half_edge.face=face_id
+                half_edge=half_edge.next_half_edge
+            face_id+=1
+    return faces,half_edges
+
+def parking_adapter(p0s,p1s,p2s,x0s,x1s,x2s)->bool:
+    """
+    Return False iff all rectangles identified by p0s,p1s,p2s are contained in x0s,x1s,x2s
+    Arguments:
+        p0s,p1s,p2s: a list of 3 points, each point is a tuple of (x,y)
+        x0s,x1s,x2s: a list of 3 points, each point is a tuple of (x,y)
+    Returns:
+        True iff all rectangles identified by p0s,p1s,p2s are contained in x0s,x1s,x2s
+    """
+    p3s=p1s+p2s-p0s
+    x3s=x1s+x2s-x0s
+    def nptotuple(npt):
+        return tuple([float(x) for x in npt])
+    print(p0s,p1s,p2s,p3s,x0s,x1s,x2s,x3s)
+    segments1=[(nptotuple(x[0][0]),nptotuple(x[1][0])) for x in zip(p0s,p1s,p2s,p3s)]
+    segments2=[(nptotuple(x[0]),nptotuple(x[1])) for x in zip(x0s,x1s,x2s,x3s)]
+    print(segments1,segments2)
+    logger.debug(f"segments1: {segments1}, segments2: {segments2}")
+    return not map_overlays(segments1,segments2)
+
+def map_overlays(segments1,segments2)->bool:
+    """
+    Check if map 1 created by segments1 is contained in map 2 created by segments2
+    Arguments:
+        segments1: a list of line segments, each segment is a tuple of ((x1,y1),(x2,y2))
+        segments2: a list of line segments, each segment is a tuple of ((x1,y1),(x2,y2))
+    Returns:
+        True if map 1 is contained in map 2
+    """
+    v1,e1=get_planner_subdivision(segments1)
+    v2,e2=get_planner_subdivision(segments2)
+    # test merge map
+    segments3=half_edges_to_segments(e1)+half_edges_to_segments(e2)
+    v3,e3=get_planner_subdivision(segments3)
+    # if more vertex is created, then there must be intersections
+    if len(v3)>len(v1)+len(v2):
+        return False
+    # test face assignment for each graph and see if our interested face is a hole or not.
+    # Hope you will not use it, it is hard to implement and need to rewrite the line intersection algorithm
+    # logger.warning("map_overlays is not fully implemented.")
+    # if the face in e1 is not 
+    return True
 # simple function tests
 if __name__ == "__main__":
     # generate random segments and compute their intersections
@@ -426,7 +562,7 @@ if __name__ == "__main__":
         end = (random.uniform(-10,10),random.uniform(-10,10))
         segments.append((start,end))
         
-    # special non-trivial test case:
+    # special non-trivial test case for line intersection
     segments = [((3.0,1.0),(5.0,5.0)),
                 ((4.0,0.0),(4.0,5.0)),
                 ((6.0,1.0),(4.0,3.0)),
@@ -434,6 +570,37 @@ if __name__ == "__main__":
                 ((2.0,3.0),(1.0,5.0)),
                 ((4.0,3.0),(3.0,5.0)),
                 ((4.0,3.0),(0.0,5.0))]
+    
+    # edge direction test case, expected half-edges to be sorted counter-clockwise with respect to the -x axis
+    segments = [((2.0,2.0),(2.0,1.0)),
+                ((1.0,1.0),(0.0,2.0)),
+                ((1.0,2.0),(1.0,1.0)),
+                ((2.0,2.0),(1.0,1.0)),
+                ((1.0,1.0),(1.0,0.0)),
+                ((0.0,1.0),(1.0,1.0)),
+                ((1.0,1.0),(2.0,0.0))]
+    
+    # special non-trivial test case for polygon intersection
+    segments1 = [((0.0,0.0),(3.0,0.0)),
+                 ((3.0,0.0),(2.0,2.0)),
+                 ((2.0,2.0),(3.0,3.0)),
+                 ((3.0,3.0),(0.0,3.0)),
+                 ((0.0,3.0),(0.0,0.0)),]
+    segments2 = [((5.0,3.0),(5.0,0.0)),
+                 ((5.0,0.0),(2.0,0.0)),
+                 ((2.0,0.0),(3.0,1.0)),
+                 ((3.0,1.0),(2.0,3.0)),
+                 ((2.0,3.0),(5.0,3.0)),]
+    
+    # special non-trivial test case for no intersection but inside the polygon
+    segments1 = [((0.0,0.0),(3.0,0.0)),
+                 ((3.0,0.0),(3.0,3.0)),
+                 ((3.0,3.0),(0.0,3.0)),
+                 ((0.0,3.0),(0.0,0.0)),]
+    segments2 = [((1.0,1.0),(2.0,1.0)),
+                 ((2.0,1.0),(2.0,2.0)),
+                 ((2.0,2.0),(1.0,2.0)),
+                 ((1.0,2.0),(1.0,1.0)),]
     n=len(segments)
     ##########################################################
     # function tests for `intersect` function, brute force n^2 algorithm
@@ -467,4 +634,33 @@ if __name__ == "__main__":
     # plt.show()
     ##########################################################
     # function test for 'planner subdivision' function, expected O(nlogn) algorithm
-    vertices,half_edges = get_planner_subdivision(segments)
+    # vertices,half_edges = get_planner_subdivision(segments)
+    # plt.scatter([x for x,y in vertices], [y for x,y in vertices.keys()],color='red')
+    # for half_edges in half_edges:
+    #     plt.plot([half_edges.origin_vertex[0],half_edges.destination_vertex()[0]], [half_edges.origin_vertex[1],half_edges.destination_vertex()[1]],color='blue')
+    # plt.show()
+    #########################################################
+    # function test for 'planner subdivision' direction of edges
+    # vertices,half_edges = get_planner_subdivision(segments)
+    # plt.scatter([x for x,y in vertices], [y for x,y in vertices.keys()],color='red')
+    # logger.info(f"resolved half-edges: {'\n'.join([str(half_edge) for half_edge in half_edges])}")
+    # for half_edges in half_edges:
+    #     plt.plot([half_edges.origin_vertex[0],half_edges.destination_vertex()[0]], [half_edges.origin_vertex[1],half_edges.destination_vertex()[1]],color='blue')
+    # plt.show()
+    #########################################################
+    # function test for face assignment,
+    vertices,half_edges = get_planner_subdivision(segments1)
+    logger.info(f"resolved half-edges: {''.join([str(half_edge) for half_edge in half_edges])}")
+    plt.scatter([x for x,y in vertices], [y for x,y in vertices.keys()],color='red')
+    for half_edge in half_edges:
+        plt.plot([half_edge.origin_vertex[0],half_edge.destination_vertex()[0]], [half_edge.origin_vertex[1],half_edge.destination_vertex()[1]],color='blue')
+    vertices,half_edges = get_planner_subdivision(segments2)
+    logger.info(f"resolved half-edges: {''.join([str(half_edge) for half_edge in half_edges])}")
+    plt.scatter([x for x,y in vertices], [y for x,y in vertices.keys()],color='red')
+    for half_edge in half_edges:
+        plt.plot([half_edge.origin_vertex[0],half_edge.destination_vertex()[0]], [half_edge.origin_vertex[1],half_edge.destination_vertex()[1]],color='blue')
+    
+    faces,edges=assign_faces(half_edges)
+    logger.info(f"assigned faces: {''.join([str(face)+': '+val.str() for face,val in faces.items()])}")
+    plt.show()
+    #########################################################

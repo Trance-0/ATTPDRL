@@ -1,6 +1,8 @@
 import numpy as np
 import pygame
 
+from envs.dcel import parking_adapter
+
 class ParkingLot():
 
     def __init__(self,xm:float,ym:float,c_s:np.ndarray,theta_s:float):
@@ -61,11 +63,20 @@ class VerticalParkingLot(ParkingLot):
     def __str__(self):
         return 'VerticalParkingLot: [',str(self.x2)+','+str(self.y1)+']'
 
-    def isCollision(self, p0s, p1s, p2s):
+    def isCollision(self, r0s, r1s, r2s):
         x0s,x1s,x2s = self.getShapes()
         # Return False iff all rectangles identified by p0s,p1s,p2s are contained in x0s,x1s,x2s
-        # TODO
-        return False
+        # TODO: can you parse the segments for me? I got [[[20 11]]
+#  [[20 11]]] [[[20 11]]
+
+#  [[20 11]]] [[[20 11]]
+
+#  [[20 11]]] [[[20 11]]
+
+#  [[20 11]]]
+        p0s,p1s,p2s = np.array([r0s,r1s]),np.array([r1s,r2s]),np.array([r2s,r0s])
+        assert len(p0s)==len(p1s)==len(p2s)==len(x0s)==len(x1s)==len(x2s),'p0s,p1s,p2s,x0s,x1s,x2s should have the same length, but got '+str(len(p0s))+','+str(len(p1s))+','+str(len(p2s))+','+str(len(x0s))+','+str(len(x1s))+','+str(len(x2s))
+        return parking_adapter(p0s,p1s,p2s,x0s,x1s,x2s)
     
     def getShapes(self):
         shapes0 = np.array([[self.x0,0],[0,self.y0]])
