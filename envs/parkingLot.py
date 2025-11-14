@@ -63,8 +63,6 @@ class VerticalParkingLot(ParkingLot):
         return 'VerticalParkingLot: [',str(self.x2)+','+str(self.y1)+']'
 
     def isCollision(self, r0s, r1s, r2s):
-        x0s,x1s,x2s = self.getShapes()
-        
         if ParkingLot.USE_THIRD_PARTY_MODULE:
             r3s = r1s+r2s-r0s
             parking_poly = Polygon([(0,self.y0),(self.x0,self.y0),(self.x0,0),(self.x1,0),(self.x1,self.y0),(self.x2,self.y0),(self.x2,self.y1),(0,self.y1)])
@@ -74,17 +72,19 @@ class VerticalParkingLot(ParkingLot):
                     return True
             return False
         # Return False iff all rectangles identified by p0s,p1s,p2s are contained in x0s,x1s,x2s
-        # TODO: can you parse the segments for me? I got [[[20 11]]
-#  [[20 11]]] [[[20 11]]
-
-#  [[20 11]]] [[[20 11]]
-
-#  [[20 11]]] [[[20 11]]
-
-#  [[20 11]]]
-        p0s,p1s,p2s = np.array([r0s,r1s]),np.array([r1s,r2s]),np.array([r2s,r0s])
-        assert len(p0s)==len(p1s)==len(p2s)==len(x0s)==len(x1s)==len(x2s),'p0s,p1s,p2s,x0s,x1s,x2s should have the same length, but got '+str(len(p0s))+','+str(len(p1s))+','+str(len(p2s))+','+str(len(x0s))+','+str(len(x1s))+','+str(len(x2s))
-        return parking_adapter(p0s,p1s,p2s,x0s,x1s,x2s)
+        r3s = r1s+r2s-r0s
+        parking_points = [(0,self.y0),(self.x0,self.y0),(self.x0,0),(self.x1,0),(self.x1,self.y0),(self.x2,self.y0),(self.x2,self.y1),(0,self.y1)]
+        parking_segments = [(parking_points[i],parking_points[(i+1)%len(parking_points)]) for i in range(len(parking_points))]
+        # avoid overlapping edges by moving truck detection points slightly
+        dy=0.00001
+        truck_points = [(r0s[i],r2s[i],r3s[i],r1s[i]) for i in range(r0s.shape[0])]
+        truck_segments=[]
+        def nparray_to_tuple(nparray):
+            return (float(nparray[0]),float(nparray[1])+dy)
+        for i in range(r0s.shape[0]):
+            for j in range(4):
+                truck_segments.append((nparray_to_tuple(truck_points[i][j]),nparray_to_tuple(truck_points[i][(j+1)%4])))
+        return parking_adapter(parking_segments, truck_segments)
     
     def getShapes(self):
         shapes0 = np.array([[self.x0,0],[0,self.y0]])
