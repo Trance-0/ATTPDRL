@@ -2,7 +2,7 @@
 # use `pip install -r ./requirements.txt` to install necessary packages.
 
 gymnasium==1.1.1
-matplotlib==3.8.2
+matplotlib==3.10.0
 numpy==2.3.4
 pygame==2.6.1
 Shapely==2.1.2
