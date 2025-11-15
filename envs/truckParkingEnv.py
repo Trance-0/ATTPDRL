@@ -19,8 +19,8 @@ class TruckParkingEnv(gym.Env):
     truckParams = {'maxTrailer':np.pi*2/3}# the maximum angle between trailer and driver
 
     # running parameters
-    speed = 0.8 # constant speed, meter/s
-    timePerStep = 10 # truck run for this time before next state
+    speed = 1 # constant speed, meter/s
+    timePerStep = 1 # truck run for this time (seconds) before next state
     h = 0.01 # time step to run the truck (differentiated path)
     maxSteps = 200 # max number of steps per trajectory
     collisionReward = -100
@@ -37,7 +37,7 @@ class TruckParkingEnv(gym.Env):
     reward_weights = np.array([0.1,0.01,1,0.5])
 
     # for plotting
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 25*timePerStep}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": max(1/h,1000)}
     window_size = 1000
 
 
@@ -77,6 +77,21 @@ class TruckParkingEnv(gym.Env):
         self.window = None
         self.clock = None
 
+    def __str__(self):
+        return super().__str__()+' truckParkingEnv'
+    
+    def setParams(self,reward_weights:np.ndarray=None,time_penalty:float=None,collisionReward:float=None,successReward:float=None,maxSteps:int=None):
+        if reward_weights is not None:
+            self.reward_weights = reward_weights
+        if time_penalty is not None:
+            self.time_penalty = time_penalty
+        if collisionReward is not None:
+            self.collisionReward = collisionReward
+        if successReward is not None:
+            self.successReward = successReward
+        if maxSteps is not None:
+            self.maxSteps = maxSteps
+
     def reset(self, seed=None, options=None) -> tuple[dict,dict]:
         super().reset(seed=seed)
 
@@ -105,10 +120,10 @@ class TruckParkingEnv(gym.Env):
     
     def _get_obs(self) -> dict:
         obs = {
-            'location':self.c,
-            'facing':self.theta,
-            'prev_direction':self.prev_dx,
-            'prev_steer_angle':self.prev_alpha
+            'location':self.c,# already np array
+            'facing':np.array([self.theta],dtype=float),
+            'prev_direction':int((self.prev_dx+1)/2),
+            'prev_steer_angle':int((self.prev_alpha+self.maxSteerAngle)/(self.maxSteerAngle/self.numSteerAngle))
         }
         obs.update(self.truck.getObs())
         return obs
@@ -121,14 +136,14 @@ class TruckParkingEnv(gym.Env):
         # reward is called on s,a
         reward = self._reward(action)
         # update self to s' from s,a
-        halfway_collision = self._transition(action)
+        halfway_done,halfway_reward = self._transition(action)
         obs = self._get_obs()
         # isTerminal is called on s'
         done,extraReward = self._isTerminal()
         reward += extraReward
-        if halfway_collision:
+        if halfway_done:
             done = True
-            reward += self.collisionReward
+            reward += halfway_reward
         self.steps += 1
 
         # for plotting
@@ -154,15 +169,18 @@ class TruckParkingEnv(gym.Env):
         # update c and theta, truck updates its own params
         t = 0
         truck_trajectory = [[],[],[]]
+        halfway_done = False
         while t<self.timePerStep:
             self.c,self.theta = self.truck.transition(self.c,self.theta,dx,alpha,self.speed,self.h)
             t += self.h
 
+            # detect halfway collisions. May be modified to detect halfway success
             x0s,x1s,x2s = self.truck.getShapes(self.c,self.theta)
             for i in range(x0s.shape[0]):
                 truck_trajectory[0].append(x0s[i])
                 truck_trajectory[1].append(x1s[i])
                 truck_trajectory[2].append(x2s[i])
+            halfway_done = self.truck.isCollision()
 
             # for plotting
             if self.render_mode == "human":
@@ -172,8 +190,9 @@ class TruckParkingEnv(gym.Env):
         self.prev_dx = dx
         self.prev_alpha = alpha
 
-        halfway_collision = self.parkingLot.isCollision(*truck_trajectory)
-        return halfway_collision
+        halfway_done = self.parkingLot.isCollision(np.array(truck_trajectory[0]),np.array(truck_trajectory[1]),np.array(truck_trajectory[2]))
+        halfway_reward = self.collisionReward
+        return halfway_done, halfway_reward
     
     def _isTerminal(self) -> tuple[bool,float]:
         # return true if success or collision or too many steps
@@ -232,3 +251,17 @@ class TruckParkingEnv(gym.Env):
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
+
+# Because stable_baseline3's DQN only supports Discrete type action space:
+class truckParkingEnvForDQN(TruckParkingEnv):
+
+    def __init__(self, render_mode=None):
+        super().__init__(render_mode=render_mode)
+        self.action_space = spaces.Discrete(2*(2*self.numSteerAngle+1))
+
+    def step(self, action):
+        _action_dict = {
+            'move_direction':int(action/(2*self.numSteerAngle+1)),
+            'steer_angle':action%(2*self.numSteerAngle+1)
+        }
+        return super().step(_action_dict)

@@ -6,7 +6,7 @@ from envs.dcel import parking_adapter
 
 class ParkingLot():
 
-    USE_THIRD_PARTY_MODULE = False
+    USE_THIRD_PARTY_MODULE = True
 
     def __init__(self,xm:float,ym:float,c_s:np.ndarray,theta_s:float):
         # parking lot dimensions

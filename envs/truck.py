@@ -72,7 +72,7 @@ class TrailerTruck(Truck):
         return {'trailer_angle':spaces.Box(-self.maxTrailerAngle,self.maxTrailerAngle,dtype=float)}
     
     def getObs(self):
-        return {'beta':self.beta}
+        return {'trailer_angle':np.array([self.beta],dtype=float)}
     
     def getShapes(self,c0,theta0):
         shapes0 = np.array([[-self.lb-self.l2,-self.l0],[-(self.lc+self.l4)*np.cos(self.beta)-self.l0*np.sin(self.beta), (self.lc+self.l4)*np.sin(self.beta)-self.l0*np.cos(self.beta)]])
