@@ -1,2 +1,13 @@
 # python trash
 __pycache__
+
+# ignore agents paths during training
+agents
+
+# ignore latex dumps
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz

@@ -1,0 +1,73 @@
+% Debugged LaTeX Template
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in,a4paper]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+
+\title{Progress Report for Autonomous Parking with DRL}
+\author{Zheyuan Wu,Yuchen Wu}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The main problem of the project is to train an agent that controls a vehicle to park in the desired spot while avoiding collision with obstacles. This problem arises from the rapid development of autonomous vehicles. Compared to parking manually, autonomous parking not only saves time, but also achieves more compact parking spaces: it can significantly boost the operation efficiency of both private cars and commercial trucks. 
+
+We aim to train an agent that is able to park the vehicle in the target spot from any feasible starting position, under time or space constraints. We approach the problem by modeling it as an environment with continuous state space (position, angle, etc.) and discrete action space (steering, direction, etc.); then we will attempt to train the agent with two algorithms: DQN and PPO. While traditional studies often focus on the parking of cars, we will attempt to park trailer trucks, which have more complex mechanics than cars and are more common in industrial contexts. A real-world application of the problem would be autonomous parking of trailer trucks to facilitate efficient cargo loading and unloading. To start with, we aim to train the agent to back a trailer truck straight into a parking spot that is directly behind it (this is easy for cars, but tricky for trailer trucks).
+
+Different from these existing works, we will attempt to solve the parking problem with tighter time and space constraints, in order to maximize the time and space efficiency of parking.
+
+\end{abstract}
+
+%%%%%%%%% BODY TEXT
+\section{Project Overview}
+We aim to leverage the token space of the TiTok Encoder  have pointed out that Large Vision-Language Models (LVLMs) can serve as more powerful scoring models to assess text–image alignment. Therefore, in this stage, we will optimize the latent tokens and evaluate whether they can still produce high-quality outputs when optimized using VQA-based scores.
+
+However, after the first-stage experiments, we found that naively replacing the CLIP score with the VQA score to optimize image tokens does not lead to better results. This is because it is more difficult to perform optimization in the direction of increasing the score within a discrete token space. Nevertheless, the failure of the VQA score to serve as an effective test-time optimization objective does not invalidate our overall plan. Rather, it highlights the limitation of cross-modal connections and underscores the importance of the training paradigm. Based on these experimental findings, we adjust our project directions as follows:
+\begin{enumerate}
+    \item Design and train a model that maps the input text tokens to latent image tokens, enabling one step generation with high visual quality.
+     \item In the first training stage, we use the ImageNet Enriched-1K dataset, which provides automatically generated image captions, for both training and validation.
+     \item Instead of directly using the VQA score as the loss function, we employ general image-to-text (I2T) models and compute text similarity as the optimization objective.
+\end{enumerate}
+
+
+\section{Team Member Roles/Tasks}
+\label{sec:roles}
+
+\subsection{Yuchen Wu}
+
+\begin{enumerate}
+
+\item Build the environment via gymnasium.
+\item Test basic DQN algorithm
+\item Writing the paper.
+\end{enumerate}
+
+\subsection{Zheyuan Wu}
+
+\begin{enumerate}
+\item Provides supporting functions and code reviews for the environment
+\item Test different algorithms for trailer parking
+\item Writing the paper.
+\end{enumerate}
+
+
+\section{Collaboration Strategy}
+Zheyuan has built a GitHub repository, and Yuchen build the environment via gymnasium.
+
+\section{Proposed Approach}
+
+\section{Data}
+
+\section{Initial Results}
+
+\section{Current Concerns and Questions}
+
+
+\end{document}
