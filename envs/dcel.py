@@ -147,6 +147,7 @@ def is_on_segment(point:tuple[float,float],segment:tuple[tuple[float,float],tupl
 def intersect(segment1,segment2) -> tuple[float,float] or None:
     """
     Compute the intersection of two line segments.
+    WARNING: There exists some bugs in the algorithm and need further experimenting the non trivial cases for intersection.
     Arguments:
         segment1: a tuple of ((x1,y1),(x2,y2))
         segment2: a tuple of ((x3,y3),(x4,y4))

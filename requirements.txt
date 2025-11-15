@@ -1,0 +1,10 @@
+# generated from stack overflow tutorials: https://stackoverflow.com/questions/31684375/automatically-create-file-requirements-txt
+# use `pip install -r ./requirements.txt` to install necessary packages.
+
+gymnasium==1.1.1
+matplotlib==3.8.2
+numpy==2.3.4
+pygame==2.6.1
+Shapely==2.1.2
+sortedcontainers==2.4.0
+stable_baselines3==2.7.0
