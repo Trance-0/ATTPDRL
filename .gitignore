@@ -3,6 +3,7 @@ __pycache__
 
 # ignore agents paths during training
 agents/*.zip
+agents/*.pkl
 
 # ignore latex dumps
 *.aux
@@ -15,3 +16,7 @@ agents/*.zip
 *.run.xml
 *.bbl
 *.blg
+
+# ignore dump on root directory
+/*.pkl
+/*.zip

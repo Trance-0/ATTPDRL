@@ -7,7 +7,9 @@ numpy==2.3.4
 pygame==2.6.1
 Shapely==2.1.2
 sortedcontainers==2.4.0
-stable_baselines3==2.7.0
+stable_baselines3[extra]==2.7.0
+tqdm==4.67.1
+joblib==1.5.2
 # replace the line belows with your torch version to enable gpu acceleration
 --index-url https://download.pytorch.org/whl/cu130
 torch
