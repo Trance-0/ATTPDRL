@@ -17,7 +17,7 @@ from utils import get_agent_save_path
 
 # refine the environment for DDPG
 from gymnasium import spaces
-class truckParkingEnvBoxSpace(TruckParkingEnv):
+class TruckParkingEnvBoxSpace(TruckParkingEnv):
     def __init__(self, render_mode=None):
         super().__init__(render_mode=render_mode)
         # parse the action space [moving direction, steering angle]
@@ -32,7 +32,7 @@ class truckParkingEnvBoxSpace(TruckParkingEnv):
         _action_dict ['steer_angle'] = int(action[1])
         return super().step(_action_dict)
 
-env = truckParkingEnvBoxSpace(render_mode='human')
+env = TruckParkingEnvBoxSpace(render_mode='human')
 episode_over = False
 total_reward = 0
 

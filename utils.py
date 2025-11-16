@@ -2,6 +2,7 @@
 Some utility functions for the project
 """
 
+import logging
 import os
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -9,7 +10,7 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 def get_agent_save_path(agent_name):
     return os.path.join(ROOT_DIR, 'agents', agent_name)
 
-def set_logger(logger_name):
+def set_logger(logger_name, debug_level=logging.DEBUG):
     
     # class logger configurations
     # https://stackoverflow.com/a/56944256
@@ -43,7 +44,7 @@ def set_logger(logger_name):
 
     # Configure the logger
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(debug_level)
 
     # Create a stream handler and set the custom formatter
     ch = logging.StreamHandler()

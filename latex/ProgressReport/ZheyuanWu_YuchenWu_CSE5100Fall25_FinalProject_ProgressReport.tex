@@ -51,20 +51,30 @@ For the first stage of the experiments, we tested the DQN algorithm to train the
 \item Provides supporting functions and code reviews for the environment
 \item Test DDPG algorithm
 \item Maintaining documentation and consistent environment
+\item Hyperparameter tuning
 \item Writing the paper and create visualization
 \end{enumerate}
 
-
-\section{Collaboration Strategy}
-Zheyuan has built a GitHub repository, and Yuchen build the environment via gymnasium.
-
 \section{Initial Results}
 
-We have implemented the environment for trailer trucks using pygame and gymnasium. We have tested the DQN algorithm to train the agent to back a trailer truck straight into a parking spot with constrained open spaces.
+We have implemented the environment for trailer trucks using pygame and gymnasium\cite{towers2024gymnasium}. We have tested the DQN algorithm to train the agent to back a trailer truck straight into a parking spot with constrained open spaces.
 
 We use stable-baselines3 \cite{stable-baselines3} as our main framework for deep reinforcement learning. 
 
 \section{Current Concerns and Questions}
+
+
+
+\section{Tentative Plan}
+
+\begin{itemize}
+    \item Week 1: Review the existing literature and the related works.
+    \item Week 2: implement the environment with gymnasium-like frameworks for trailer truck parking.
+    \item Week 3: train the agent with DQN and PPO on home computer.
+    \item Week 4: evaluate the performance of the agent and compare it with the existing literature.
+    \item Week 5: try to use the cloud resources to train the agent with more complicated algorithms or add more constraints to the environment to make it more robust and realistic to real-world applications.
+    \item Week 6: deliver the report and the video demonstration of the agent's performance.
+\end{itemize}
 
 \printbibliography
 
