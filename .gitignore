@@ -11,3 +11,7 @@ agents
 *.log
 *.out
 *.synctex.gz
+*.bcf
+*.run.xml
+*.bbl
+*.blg

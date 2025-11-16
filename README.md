@@ -15,3 +15,23 @@ conda create --name ATTPDRL python=3.13.1
 conda activate ATTPDRL
 pip install -r ./requirements.txt
 ```
+
+## Usage
+
+To run the simulation, use command below:
+
+```bash
+python <Name-of-Agent>.py
+```
+
+For example, to run Random movement agent, use command below:
+
+```bash
+python randomAction.py
+```
+
+To run DDPG agent, use command below:
+
+```bash
+python DDPGAgent.py
+```

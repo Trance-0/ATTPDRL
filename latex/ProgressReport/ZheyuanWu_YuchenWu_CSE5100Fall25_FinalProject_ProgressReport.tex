@@ -8,6 +8,8 @@
 \usepackage{xcolor}
 \usepackage{listings}
 \usepackage{caption}
+\usepackage{biblatex}
+\addbibresource{reference.bib}
 
 \title{Progress Report for Autonomous Parking with DRL}
 \author{Zheyuan Wu,Yuchen Wu}
@@ -27,15 +29,9 @@ Different from these existing works, we will attempt to solve the parking proble
 
 %%%%%%%%% BODY TEXT
 \section{Project Overview}
-We aim to leverage the token space of the TiTok Encoder  have pointed out that Large Vision-Language Models (LVLMs) can serve as more powerful scoring models to assess text–image alignment. Therefore, in this stage, we will optimize the latent tokens and evaluate whether they can still produce high-quality outputs when optimized using VQA-based scores.
+We aim to leverage the existing deep reinforcement learning models to solve this problem and test various algorithms to train the agent to back a trailer truck straight into a parking spot with constrained open spaces.
 
-However, after the first-stage experiments, we found that naively replacing the CLIP score with the VQA score to optimize image tokens does not lead to better results. This is because it is more difficult to perform optimization in the direction of increasing the score within a discrete token space. Nevertheless, the failure of the VQA score to serve as an effective test-time optimization objective does not invalidate our overall plan. Rather, it highlights the limitation of cross-modal connections and underscores the importance of the training paradigm. Based on these experimental findings, we adjust our project directions as follows:
-\begin{enumerate}
-    \item Design and train a model that maps the input text tokens to latent image tokens, enabling one step generation with high visual quality.
-     \item In the first training stage, we use the ImageNet Enriched-1K dataset, which provides automatically generated image captions, for both training and validation.
-     \item Instead of directly using the VQA score as the loss function, we employ general image-to-text (I2T) models and compute text similarity as the optimization objective.
-\end{enumerate}
-
+For the first stage of the experiments, we tested the DQN algorithm to train the agent to back a trailer truck straight into a parking spot with constrained open spaces.
 
 \section{Team Member Roles/Tasks}
 \label{sec:roles}
@@ -53,21 +49,23 @@ However, after the first-stage experiments, we found that naively replacing the 
 
 \begin{enumerate}
 \item Provides supporting functions and code reviews for the environment
-\item Test different algorithms for trailer parking
-\item Writing the paper.
+\item Test DDPG algorithm
+\item Maintaining documentation and consistent environment
+\item Writing the paper and create visualization
 \end{enumerate}
 
 
 \section{Collaboration Strategy}
 Zheyuan has built a GitHub repository, and Yuchen build the environment via gymnasium.
 
-\section{Proposed Approach}
-
-\section{Data}
-
 \section{Initial Results}
+
+We have implemented the environment for trailer trucks using pygame and gymnasium. We have tested the DQN algorithm to train the agent to back a trailer truck straight into a parking spot with constrained open spaces.
+
+We use stable-baselines3 \cite{stable-baselines3} as our main framework for deep reinforcement learning. 
 
 \section{Current Concerns and Questions}
 
+\printbibliography
 
 \end{document}
