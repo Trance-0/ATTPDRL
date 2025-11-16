@@ -3,8 +3,8 @@ import pygame
 import gymnasium as gym
 from gymnasium import spaces
 
-from envs.parkingLot import ParkingLot, VerticalParkingLot
-from envs.truck import Truck, TrailerTruck
+from envs.parkingLot import *
+from envs.truck import *
 
 class TruckParkingEnv(gym.Env):
     
@@ -120,8 +120,8 @@ class TruckParkingEnv(gym.Env):
     
     def _get_obs(self) -> dict:
         obs = {
-            'location':self.c,# already np array
-            'facing':np.array([self.theta],dtype=float),
+            'location':np.array(self.c,dtype=np.float32),# already np array
+            'facing':np.array([self.theta],dtype=np.float32),
             'prev_direction':int((self.prev_dx+1)/2),
             'prev_steer_angle':int((self.prev_alpha+self.maxSteerAngle)/(self.maxSteerAngle/self.numSteerAngle))
         }
@@ -253,7 +253,7 @@ class TruckParkingEnv(gym.Env):
             pygame.quit()
 
 # Because stable_baseline3's DQN only supports Discrete type action space:
-class truckParkingEnvForDQN(TruckParkingEnv):
+class TruckParkingEnvForDQN(TruckParkingEnv):
 
     def __init__(self, render_mode=None):
         super().__init__(render_mode=render_mode)
@@ -265,3 +265,38 @@ class truckParkingEnvForDQN(TruckParkingEnv):
             'steer_angle':action%(2*self.numSteerAngle+1)
         }
         return super().step(_action_dict)
+    
+class VeryVerySimpleTruckParkingEnvForDQN(TruckParkingEnvForDQN):
+    '''
+    In this environment, the truck simply needs to drive straightly forward for 1 meter to success
+    it is used to test the validity of the naive training case
+    '''
+
+    timePerStep = 0.1
+
+    # target location and facing 
+    c_star = np.array([20,6])
+    theta_star = -np.pi/2
+    c_tol = 0.5 # tolerance in meters of manhattan distance
+    theta_tol = np.pi/30 # tolerance in radial
+
+    def __init__(self, render_mode=None):
+        super().__init__(render_mode)
+        self.parkingLot:ParkingLot = EmptyParkingLot(self.xmax,self.ymax,self.c_star,self.theta_star)
+
+    def reset(self, seed=None, options=None) -> tuple[dict,dict]:
+        super().reset(seed=seed)
+
+        self.c = np.array([20,7])
+        self.theta = -np.pi/2
+        self.prev_dx = 1 # default to start parking with forward direction
+        self.prev_alpha = 0 # default to start parking with straight angle
+        self.truck.reset()
+        self.steps = 0
+        obs = self._get_obs()
+
+        # for plotting
+        if self.render_mode == "human":
+            self._render_frame()
+        
+        return obs, {}
