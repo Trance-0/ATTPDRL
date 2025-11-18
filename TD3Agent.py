@@ -1,22 +1,22 @@
 import numpy as np
 from envs.truckParkingEnv import *
-from stable_baselines3 import DQN
+from stable_baselines3 import TD3
 from stable_baselines3.common.evaluation import evaluate_policy
 import joblib
 
 
 # initialize environment
-env = TruckParkingEnvForDQN(render_mode='rgb_array')
+env = VeryVerySimpleTruckParkingEnvContinuous(render_mode='rgb_array')
 env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
               time_penalty=0.01,
               collisionReward=-100,
               successReward=100,
               maxSteps=200)
 # train agent
-model = DQN("MultiInputPolicy", env, verbose=1)
-model.learn(total_timesteps=500000,log_interval=4)
-model.save('DQN_truck_agent') # save the trained agent as 'DQN_truck_agent'
-joblib.dump(env,'DQN_simple_env.pkl')
+model = TD3("MultiInputPolicy", env, verbose=1, tensorboard_log='./tensorboard_logs')
+model.learn(total_timesteps=5000,log_interval=4)
+model.save('TD3_truck_agent') # save the trained agent as 'TD3_truck_agent'
+joblib.dump(env,'TD3_simple_env.pkl')
 
 # print learned rewards
 mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)

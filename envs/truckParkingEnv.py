@@ -131,7 +131,7 @@ class TruckParkingEnv(gym.Env):
     # Generat step function, action ==  array([dx,alpha])
     def step(self, action:dict) -> tuple[dict,float,bool,bool,dict]:
         # verify action validity
-        assert action['move_direction'] in [0,1] and action['steer_angle'] in range(2*self.numSteerAngle+1)
+        # assert action['move_direction'] in [0,1] and action['steer_angle'] in range(2*self.numSteerAngle+1)
 
         # reward is called on s,a
         reward = self._reward(action)
@@ -266,12 +266,76 @@ class TruckParkingEnvForDQN(TruckParkingEnv):
         }
         return super().step(_action_dict)
     
+# with continuous action space
+class TruckParkingEnvContinuous(TruckParkingEnv):
+
+    def __init__(self, render_mode=None):
+        super().__init__(render_mode=render_mode)
+        self.action_space = spaces.Box(low=np.array([-1.0,-self.numSteerAngle]), high=np.array([1.0,self.numSteerAngle]), shape=(2,), dtype=np.float32)
+        _observe_dict = {
+            'location':spaces.Box(np.array([0,0]),np.array([self.xmax,self.ymax]),dtype=float),
+            'facing':spaces.Box(-np.pi,np.pi,dtype=float),
+            'prev_direction':spaces.Discrete(2),
+            'prev_steer_angle':spaces.Box(-self.numSteerAngle,self.numSteerAngle,dtype=float)
+        }
+        _observe_dict.update(self.truck.getObsSpace())
+        self.observation_space = spaces.Dict(_observe_dict)
+
+    def _get_obs(self) -> dict:
+        obs = {
+            'location':np.array(self.c,dtype=np.float64),# already np array
+            'facing':np.array([self.theta],dtype=np.float64),
+            'prev_direction':int((self.prev_dx+1)/2),
+            'prev_steer_angle':np.array([(self.prev_alpha+self.maxSteerAngle)/(self.maxSteerAngle/self.numSteerAngle)],dtype=np.float64)
+        }
+        obs.update(self.truck.getObs())
+        return obs
+
+    def step(self, action):
+        _action_dict = {
+            'move_direction':1 if action[0]>=0 else 0,
+            'steer_angle':action[1]
+        }
+        return super().step(_action_dict)
+    
+    
+    
 class VeryVerySimpleTruckParkingEnvForDQN(TruckParkingEnvForDQN):
     '''
     In this environment, the truck simply needs to drive straightly forward for 1 meter to success
     it is used to test the validity of the naive training case
     '''
 
+    timePerStep = 0.1
+
+    # target location and facing 
+    c_star = np.array([20,6])
+    theta_star = -np.pi/2
+    c_tol = 0.5 # tolerance in meters of manhattan distance
+    theta_tol = np.pi/30 # tolerance in radial
+
+    def __init__(self, render_mode=None):
+        super().__init__(render_mode)
+        self.parkingLot:ParkingLot = EmptyParkingLot(self.xmax,self.ymax,self.c_star,self.theta_star)
+
+    def reset(self, seed=None, options=None) -> tuple[dict,dict]:
+        super().reset(seed=seed)
+
+        self.c = np.array([20,7])
+        self.theta = -np.pi/2
+        self.prev_dx = 1 # default to start parking with forward direction
+        self.prev_alpha = 0 # default to start parking with straight angle
+        self.truck.reset()
+        self.steps = 0
+        obs = self._get_obs()
+
+        # for plotting
+        if self.render_mode == "human":
+            self._render_frame()
+        
+        return obs, {}
+    
+class VeryVerySimpleTruckParkingEnvContinuous(TruckParkingEnvContinuous):
     timePerStep = 0.1
 
     # target location and facing 
