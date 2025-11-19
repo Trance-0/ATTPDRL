@@ -47,8 +47,8 @@ class ParkingLot():
 class VerticalParkingLot(ParkingLot):
 
     # dimensions of the parking lot
-    x0 = 18
-    x1 = 22
+    x0 = 16
+    x1 = 24
     x2 = 40
     y0 = 15
     y1 = 40

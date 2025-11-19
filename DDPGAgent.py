@@ -25,8 +25,8 @@ logger = set_logger(TASK_NAME)
 from PPOAgent import TruckParkingEnvBoxSpace
 
 if __name__ == "__main__":
-    env = TruckParkingEnvBoxSpace(render_mode='rgb_array',mode='standard')
-    # env = TruckParkingEnvBoxSpace(render_mode='human')
+    # env = TruckParkingEnvBoxSpace(render_mode='rgb_array',mode='standard')
+    env = TruckParkingEnvBoxSpace(render_mode='human')
     episode_over = False
     total_reward = 0
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
     model = DDPG("MultiInputPolicy", env, action_noise=action_noise, verbose=1, device='cuda')
-    model.learn(total_timesteps=30000, log_interval=200, progress_bar=True)
+    model.learn(total_timesteps=1000, log_interval=200, progress_bar=True)
     model.save(get_agent_save_path(TASK_NAME))
     joblib.dump(env,get_agent_save_path(f'{TASK_NAME}_env.pkl'))
 

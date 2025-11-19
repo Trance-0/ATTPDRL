@@ -20,7 +20,8 @@ from utils import get_agent_save_path, set_logger
 from collections import defaultdict
 
 # parameter used to store the trained agent
-TASK_NAME = "PPO_truck_agent"
+TASK_NAME = "PPO_truck_agent_1M"
+TOTAL_TIMESTEPS = 10**6
 
 logger = set_logger(TASK_NAME)
 
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     total_reward = 0
 
     model = PPO("MultiInputPolicy", env, verbose=1)
-    model.learn(total_timesteps=30000, log_interval=10, progress_bar=True)
+    model.learn(total_timesteps=TOTAL_TIMESTEPS, log_interval=10, progress_bar=True)
     model.save(get_agent_save_path(TASK_NAME))
     joblib.dump(env,get_agent_save_path(f'{TASK_NAME}_env.pkl'))
 

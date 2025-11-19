@@ -56,3 +56,12 @@ def set_logger(logger_name, debug_level=logging.DEBUG):
     return logger
     # class logger ends
 
+def test_cuda():
+    from stable_baselines3.common.utils import get_device
+    print(f'stable_baselines3.common.utils.get_device(): {get_device()}') # Should output 'cpu' if CUDA is not available or not enabled in PyTorchget_device()) # Should output 'cuda' if GPU is detected and available
+    import torch
+    print(torch.cuda.is_available()) # Should be True
+    print(torch.cuda.get_device_name(0)) # Should show your GPU name
+    
+if __name__ == "__main__":
+    test_cuda()

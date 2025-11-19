@@ -4,6 +4,7 @@ __pycache__
 # ignore agents paths during training
 agents/*.zip
 agents/*.pkl
+tensorboard_logs/
 
 # ignore latex dumps
 *.aux

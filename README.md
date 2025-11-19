@@ -13,8 +13,22 @@ To start the simulation, create python environment using commands below:
 ```bash
 conda create --name ATTPDRL python=3.13.1
 conda activate ATTPDRL
+```
+
+Then install pytorch and torchvision using commands below:
+
+```bash
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+```
+
+Then install the required packages using commands below:
+
+```bash
 pip install -r ./requirements.txt
 ```
+
+
+The demonstration above uses CUDA 13.0, you may modify to your desired version.
 
 ## Usage
 
