@@ -34,7 +34,7 @@ class TruckParkingEnv(gym.Env):
 
     # reward function parameter
     time_penalty = 0.01
-    reward_weights = np.array([0.1,0.01,1,0.5])
+    reward_weights = np.array([1,0.5,0.25,0])
 
     # for plotting
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": max(1/h,1000)}
@@ -111,6 +111,8 @@ class TruckParkingEnv(gym.Env):
             self.steps = 0
             valid = not self._isTerminal()[0]
         obs = self._get_obs()
+        self.prev_obs = obs
+        self.d_c0 = np.linalg.norm(self.c-self.c_star)
 
         # for plotting
         if self.render_mode == "human":
@@ -133,9 +135,10 @@ class TruckParkingEnv(gym.Env):
         # verify action validity
         # assert action['move_direction'] in [0,1] and action['steer_angle'] in range(2*self.numSteerAngle+1)
 
-        # reward is called on s,a
+        # reward is called on s,a and previous obs
         reward = self._reward(action)
         # update self to s' from s,a
+        self.prev_obs = self._get_obs() # update previous obs to be the current obs
         halfway_done,halfway_reward = self._transition(action)
         obs = self._get_obs()
         # isTerminal is called on s'
@@ -154,11 +157,13 @@ class TruckParkingEnv(gym.Env):
     
     # R(s,a) with s being self and a == array([dx,alpha])
     def _reward(self,action:dict) -> float:
-        d_c = np.sum(np.abs(self.c-self.c_star))
+        d_c = np.linalg.norm(self.c-self.c_star)
         d_theta = abs(self.theta-self.theta_star)
-        d_dx = int(self.prev_dx != action['move_direction'])
-        d_alpha = self.prev_alpha-action['steer_angle']
-        return -self.time_penalty-np.dot([d_c,(1-np.cos(d_theta))/(1+d_c),d_dx,d_alpha],self.reward_weights)
+        rew_dx = -int(self.prev_dx != action['move_direction'])
+        rew_alpha = -abs(self.prev_alpha-action['steer_angle'])
+        rew_c = -d_c/self.d_c0
+        rew_theta = -d_theta/np.pi
+        return -self.time_penalty+np.dot([rew_c,rew_theta,rew_dx,rew_alpha],self.reward_weights)
     
     # T(s,a) with s being self and a == array([dx,alpha]), modify self's variables and return nothing
     def _transition(self,action:dict):
@@ -253,7 +258,7 @@ class TruckParkingEnv(gym.Env):
             pygame.quit()
 
 # Because stable_baseline3's DQN only supports Discrete type action space:
-class TruckParkingEnvForDQN(TruckParkingEnv):
+class TruckParkingEnvDiscrete(TruckParkingEnv):
 
     def __init__(self, render_mode=None):
         super().__init__(render_mode=render_mode)
@@ -300,7 +305,7 @@ class TruckParkingEnvContinuous(TruckParkingEnv):
     
     
     
-class VeryVerySimpleTruckParkingEnvForDQN(TruckParkingEnvForDQN):
+class VeryVerySimpleTruckParkingEnvDiscrete(TruckParkingEnvDiscrete):
     '''
     In this environment, the truck simply needs to drive straightly forward for 1 meter to success
     it is used to test the validity of the naive training case
@@ -321,13 +326,14 @@ class VeryVerySimpleTruckParkingEnvForDQN(TruckParkingEnvForDQN):
     def reset(self, seed=None, options=None) -> tuple[dict,dict]:
         super().reset(seed=seed)
 
-        self.c = np.array([20,7])
-        self.theta = -np.pi/2
+        self.c = np.array([20,20])
+        self.theta = -np.pi/2*1.1
         self.prev_dx = 1 # default to start parking with forward direction
         self.prev_alpha = 0 # default to start parking with straight angle
         self.truck.reset()
         self.steps = 0
         obs = self._get_obs()
+        self.prev_obs = obs
 
         # for plotting
         if self.render_mode == "human":
@@ -358,6 +364,7 @@ class VeryVerySimpleTruckParkingEnvContinuous(TruckParkingEnvContinuous):
         self.truck.reset()
         self.steps = 0
         obs = self._get_obs()
+        self.prev_obs = obs
 
         # for plotting
         if self.render_mode == "human":

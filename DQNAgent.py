@@ -6,15 +6,15 @@ import joblib
 
 
 # initialize environment
-env = TruckParkingEnvForDQN(render_mode='rgb_array')
-env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
+env = VeryVerySimpleTruckParkingEnvDiscrete(render_mode='rgb_array')
+env.setParams(reward_weights = np.array([1,0.5,0.5,0]),
               time_penalty=0.01,
               collisionReward=-100,
               successReward=100,
               maxSteps=200)
 # train agent
 model = DQN("MultiInputPolicy", env, verbose=1)
-model.learn(total_timesteps=500000,log_interval=4)
+model.learn(total_timesteps=5000,log_interval=4)
 model.save('DQN_truck_agent') # save the trained agent as 'DQN_truck_agent'
 joblib.dump(env,'DQN_simple_env.pkl')
 
