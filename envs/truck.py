@@ -25,6 +25,9 @@ class Truck():
     def isCollision(self) -> bool:
         return False
     
+    def getReward(self,action:int) -> float:
+        return 0
+    
     # drive the truck in direction dx, with steering angle alpha, with speed, for time
     # return d_c, d_theta; d_c is array([dxc,dyc])
     def transition(self,c0:np.ndarray,theta0:float,dx:int,alpha:float,speed:float,h:float) -> tuple[np.ndarray,float]:
@@ -83,8 +86,14 @@ class TrailerTruck(Truck):
         shapes2 = Truck.shape_transform(shapes2,c0,theta0)
         return shapes0,shapes1,shapes2
     
+    
     def isCollision(self):
         return abs(self.beta) >= self.maxTrailerAngle
+    
+    def getReward(self,action:int):
+        if abs(self.beta)<self.maxTrailerAngle/2:
+            return 0
+        return self.maxTrailerAngle/abs(1+self.maxTrailerAngle-abs(self.beta))
     
     def transition(self,c0,theta0,dx,alpha,speed,h):
         self.alpha = np.sign(alpha)*min(abs(alpha),self.maxSteerAngle)

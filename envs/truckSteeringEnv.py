@@ -35,7 +35,7 @@ class TruckSteeringEnv(gym.Env):
 
     # reward function parameter
     time_penalty = 0.01
-    reward_weights = np.array([1,0.5,0.5,0])
+    reward_weights = np.array([1,0.5,0.5,0.5])
 
     # for plotting
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": max(1/h,1000)}
@@ -169,13 +169,15 @@ class TruckSteeringEnv(gym.Env):
         d_c_prev = np.linalg.norm(self.prev_obs['location']-self.c_star)
         rew_c = -(d_c-d_c_prev)/self.d_c0
         rew_theta = -(d_theta/np.pi)
-        # 0 is for potential extra terms added in the future
-        return -self.time_penalty+np.dot([rew_c,rew_theta,0,0],self.reward_weights)
+        rew_truck = self.truck.getReward(action)
+        rew_wall = 0# TODO penalize when too close to wall
+        return -self.time_penalty+np.dot([rew_c,rew_theta,rew_truck,rew_wall],self.reward_weights)
     
     # T(s,a) with s being self and a == array([dx,alpha]), modify self's variables and return nothing
     def _transition(self,action:int):
         # extract actions
         self.alpha += (2*action-1)*self.deltaSteerAngle
+        self.alpha = max(-self.maxSteerAngle,min(self.maxSteerAngle,self.alpha))
 
         # update c and theta, truck updates its own params
         t = 0
