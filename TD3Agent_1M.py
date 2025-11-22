@@ -7,17 +7,17 @@ import joblib
 from utils import get_agent_save_path, set_logger
 
 # parameter used to store the trained agent
-TASK_NAME = "TD3_truck_agent_1M"
+TASK_NAME = "TD3_truck_agent_default_param_1M"
 TOTAL_TIMESTEPS = 10**6
 
 # initialize environment
 # env = VeryVerySimpleTruckParkingEnvContinuous(render_mode='rgb_array')
 env = TruckParkingEnvContinuous(render_mode='rgb_array')
-env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
-              time_penalty=0.01,
-              collisionReward=-100,
-              successReward=100,
-              maxSteps=200)
+# env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
+#               time_penalty=0.01,
+#               collisionReward=-100,
+#               successReward=100,
+#               maxSteps=200)
 # train agent
 model = TD3("MultiInputPolicy", env, verbose=1, tensorboard_log='./tensorboard_logs',device='cuda')
 model.learn(total_timesteps=TOTAL_TIMESTEPS, log_interval=10, progress_bar=True)
