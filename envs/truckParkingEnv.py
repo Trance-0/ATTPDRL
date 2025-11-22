@@ -314,8 +314,8 @@ class VeryVerySimpleTruckParkingEnvDiscrete(TruckParkingEnvDiscrete):
     timePerStep = 0.1
 
     # target location and facing 
-    c_star = np.array([20,6])
-    theta_star = -np.pi/2
+    c_star = np.array([20,11])
+    theta_star = np.pi/2
     c_tol = 0.5 # tolerance in meters of manhattan distance
     theta_tol = np.pi/30 # tolerance in radial
 
@@ -326,8 +326,8 @@ class VeryVerySimpleTruckParkingEnvDiscrete(TruckParkingEnvDiscrete):
     def reset(self, seed=None, options=None) -> tuple[dict,dict]:
         super().reset(seed=seed)
 
-        self.c = np.array([20,20])
-        self.theta = -np.pi/2*1.1
+        self.c = np.array([20,33])
+        self.theta = np.pi/2*1.1
         self.prev_dx = 1 # default to start parking with forward direction
         self.prev_alpha = 0 # default to start parking with straight angle
         self.truck.reset()
@@ -345,8 +345,8 @@ class VeryVerySimpleTruckParkingEnvContinuous(TruckParkingEnvContinuous):
     timePerStep = 0.1
 
     # target location and facing 
-    c_star = np.array([20,6])
-    theta_star = -np.pi/2
+    c_star = np.array([20,11])
+    theta_star = np.pi/2
     c_tol = 0.5 # tolerance in meters of manhattan distance
     theta_tol = np.pi/30 # tolerance in radial
 
@@ -357,8 +357,8 @@ class VeryVerySimpleTruckParkingEnvContinuous(TruckParkingEnvContinuous):
     def reset(self, seed=None, options=None) -> tuple[dict,dict]:
         super().reset(seed=seed)
 
-        self.c = np.array([20,7])
-        self.theta = -np.pi/2
+        self.c = np.array([20,33])
+        self.theta = np.pi/2*1.1
         self.prev_dx = 1 # default to start parking with forward direction
         self.prev_alpha = 0 # default to start parking with straight angle
         self.truck.reset()
