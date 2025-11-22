@@ -101,12 +101,26 @@ class VerticalParkingLot(ParkingLot):
         x1s = (x1s*pixPerUnit)
         for i in range(2):
             pygame.draw.polygon(canvas,[255,255,255],[x0s[i,:],x2s[i,:],x3s[i,:],x1s[i,:]],width=0)
+        _center = (self.c_star*pixPerUnit)
+        pygame.draw.circle(canvas,[32,32,32],_center,2)
 
 class EmptyParkingLot(VerticalParkingLot):
     x0 = 0
     x1 = 40
     x2 = 40
     y0 = 0
+    y1 = 40
+
+    def __init__(self, xm, ym, c_s, theta_s):
+        super().__init__(xm, ym, c_s, theta_s)
+        # in this case, we have empty parking lot
+        self.x1 = xm
+
+class LongParkingLot(VerticalParkingLot):
+    x0 = 40
+    x1 = 40
+    x2 = 40
+    y0 = 30
     y1 = 40
 
     def __init__(self, xm, ym, c_s, theta_s):

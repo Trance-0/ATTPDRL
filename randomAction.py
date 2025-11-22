@@ -1,6 +1,6 @@
-from envs.truckParkingEnv import *
+from envs.truckSteeringEnv import *
 
-env = VeryVerySimpleTruckParkingEnvDiscrete(render_mode='human')
+env = TruckSteeringForwardEnv(render_mode='human')
 episode_over = False
 total_reward = 0
 

@@ -11,8 +11,8 @@ class Truck():
     def reset(self):
         self.alpha = 0
     
-    def getObsSpace(self) -> dict:
-        return dict()
+    def getObsSpace(self) -> spaces.Box:
+        return None
     
     def getObs(self) -> dict:
         return dict()
@@ -69,7 +69,7 @@ class TrailerTruck(Truck):
         self.beta = 0
 
     def getObsSpace(self):
-        return {'trailer_angle':spaces.Box(-self.maxTrailerAngle,self.maxTrailerAngle,dtype=float)}
+        return spaces.Box(-self.maxTrailerAngle,self.maxTrailerAngle,dtype=float)
     
     def getObs(self):
         return {'trailer_angle':np.array([self.beta],dtype=float)}
