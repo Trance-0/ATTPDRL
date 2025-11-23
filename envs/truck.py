@@ -59,6 +59,8 @@ class TrailerTruck(Truck):
     l3 = 0.7
     l4 = 1
 
+    trailerAnglePenaltyThreshold = 0.5
+
     def __init__(self,maxSteer,maxTrailer):
         super().__init__(maxSteer)
         assert 0<maxTrailer and maxTrailer<np.pi
@@ -75,7 +77,7 @@ class TrailerTruck(Truck):
         return spaces.Box(-self.maxTrailerAngle,self.maxTrailerAngle,dtype=float)
     
     def getObs(self):
-        return {'trailer_angle':np.array([self.beta],dtype=float)}
+        return np.array([self.beta],dtype=float)
     
     def getShapes(self,c0,theta0):
         shapes0 = np.array([[-self.lb-self.l2,-self.l0],[-(self.lc+self.l4)*np.cos(self.beta)-self.l0*np.sin(self.beta), (self.lc+self.l4)*np.sin(self.beta)-self.l0*np.cos(self.beta)]])
@@ -91,9 +93,9 @@ class TrailerTruck(Truck):
         return abs(self.beta) >= self.maxTrailerAngle
     
     def getReward(self,action:int):
-        if abs(self.beta)<self.maxTrailerAngle/2:
+        if abs(self.beta)<self.maxTrailerAngle*self.trailerAnglePenaltyThreshold:
             return 0
-        return self.maxTrailerAngle/abs(1+self.maxTrailerAngle-abs(self.beta))
+        return (1+self.maxTrailerAngle*(1-self.trailerAnglePenaltyThreshold))/abs(1+self.maxTrailerAngle-abs(self.beta))
     
     def transition(self,c0,theta0,dx,alpha,speed,h):
         self.alpha = np.sign(alpha)*min(abs(alpha),self.maxSteerAngle)

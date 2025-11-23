@@ -1,10 +1,9 @@
 from stable_baselines3 import *
 from stable_baselines3.common.evaluation import evaluate_policy
 import joblib
-from PPOAgent import TruckParkingEnvBoxSpace
 
-env = joblib.load('PPO_truck_agent_1M_env.pkl') # for unknowm reasons, the environment must be saved after training and reloaded this way
-model = PPO.load("PPO_truck_agent_1M.zip",env=env)
+env = joblib.load('DQN_simple_env.pkl') # for unknowm reasons, the environment must be saved after training and reloaded this way
+model = DQN.load("DQN_truck_agent.zip",env=env)
 
 # print learned rewards
 # mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)

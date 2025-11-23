@@ -1,20 +1,20 @@
 import numpy as np
-from envs.truckParkingEnv import *
+from envs.truckSteeringEnv import *
 from stable_baselines3 import TD3
 from stable_baselines3.common.evaluation import evaluate_policy
 import joblib
 
 
 # initialize environment
-env = VeryVerySimpleTruckParkingEnvContinuous(render_mode='rgb_array')
-env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
+env = TruckSteeringForwardEnvCts(render_mode='rgb_array')
+env.setParams(reward_weights = np.array([1,0.5,0.5,0.5]),
               time_penalty=0.01,
               collisionReward=-100,
               successReward=100,
               maxSteps=200)
 # train agent
-model = TD3("MultiInputPolicy", env, verbose=1, tensorboard_log='./tensorboard_logs')
-model.learn(total_timesteps=5000,log_interval=4)
+model = TD3("MlpPolicy", env, verbose=1, tensorboard_log='./tensorboard_logs')
+model.learn(total_timesteps=50000,log_interval=4)
 model.save('TD3_truck_agent') # save the trained agent as 'TD3_truck_agent'
 joblib.dump(env,'TD3_simple_env.pkl')
 

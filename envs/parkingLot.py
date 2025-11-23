@@ -1,5 +1,6 @@
 import numpy as np
 import pygame
+import shapely
 from shapely import Polygon
 
 from envs.dcel import parking_adapter
@@ -37,6 +38,13 @@ class ParkingLot():
         shape2 = p2s.shape
         assert len(shape0)==2 and len(shape1)==2 and len(shape2)==2 and shape0[0] == shape1[0] and shape1[0] == shape2[0]
         return False
+    
+    def minDistance(self,p0s:np.ndarray,p1s:np.ndarray,p2s:np.ndarray) -> bool:
+        shape0 = p0s.shape
+        shape1 = p1s.shape
+        shape2 = p2s.shape
+        assert len(shape0)==2 and len(shape1)==2 and len(shape2)==2 and shape0[0] == shape1[0] and shape1[0] == shape2[0]
+        return 0
     
     def getShapes(self) -> tuple[np.ndarray]:
         return np.array([[0,0]]),np.array([[0,0]]),np.array([[0,0]])
@@ -85,6 +93,17 @@ class VerticalParkingLot(ParkingLot):
             for j in range(4):
                 truck_segments.append((nparray_to_tuple(truck_points[i][j]),nparray_to_tuple(truck_points[i][(j+1)%4])))
         return parking_adapter(parking_segments, truck_segments)
+    
+    def minDistance(self, r0s, r1s, r2s):
+        resl = np.inf
+        r3s = r1s+r2s-r0s
+        parking_poly = Polygon([(0,self.y0),(self.x0,self.y0),(self.x0,0),(self.x1,0),(self.x1,self.y0),(self.x2,self.y0),(self.x2,self.y1),(0,self.y1)])
+        parking_poly_bounds = parking_poly.boundary
+        truck_polys = [Polygon([r0s[i],r2s[i],r3s[i],r1s[i]]) for i in range(r0s.shape[0])]
+        for truck_poly in truck_polys:
+            resl = min(resl,shapely.distance(truck_poly,parking_poly_bounds))
+
+        return resl
     
     def getShapes(self):
         shapes0 = np.array([[self.x0,0],[0,self.y0]])

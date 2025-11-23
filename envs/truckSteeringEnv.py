@@ -24,9 +24,7 @@ class TruckSteeringEnv(gym.Env):
     timePerStep = 0.1 # truck run for this time (seconds) before next state
     h = 0.01 # time step to run the truck (differentiated path)
     maxSteps = 200 # max number of steps per trajectory
-    collisionReward = -100
-    successReward = 100
-
+    
     # target location and facing 
     c_star = np.array([6,35])
     theta_star = np.pi
@@ -35,7 +33,10 @@ class TruckSteeringEnv(gym.Env):
 
     # reward function parameter
     time_penalty = 0.01
-    reward_weights = np.array([1,0.5,0.5,0.5])
+    reward_weights = np.array([1,0.5,0.5,1])
+    wallPenaltyThreshold = 1.5
+    collisionReward = -100
+    successReward = 100
 
     # for plotting
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": max(1/h,1000)}
@@ -129,18 +130,14 @@ class TruckSteeringEnv(gym.Env):
         
         return obs, {}
     
-    def _get_obs(self) -> dict:
-        obs = {
-            'location':np.array(self.c,dtype=np.float32),# already np array
-            'facing':np.array([self.theta],dtype=np.float32)
-        }
-        obs.update(self.truck.getObs())
+    def _get_obs(self) -> np.ndarray:
+        obs = np.concat((self.c,[self.theta],self.truck.getObs()))
         return obs
 
     # Generat step function, action ==  array([dx,alpha])
-    def step(self, action:int) -> tuple[dict,float,bool,bool,dict]:
+    def step(self, action:float) -> tuple[dict,float,bool,bool,dict]:
         # verify action validity
-        # assert action['move_direction'] in [0,1] and action['steer_angle'] in range(2*self.numSteerAngle+1)
+        # assert action in [0,1] 
 
         # reward is called on s,a and previous obs
         reward = self._reward(action)
@@ -163,18 +160,22 @@ class TruckSteeringEnv(gym.Env):
         return obs, reward, done, False, {}
     
     # R(s,a) with s being self and a == array([dx,alpha])
-    def _reward(self,action:int) -> float:
+    def _reward(self,action:float) -> float:
         d_c = np.linalg.norm(self.c-self.c_star)
         d_theta = abs(self.theta-self.theta_star)
-        d_c_prev = np.linalg.norm(self.prev_obs['location']-self.c_star)
-        rew_c = -(d_c-d_c_prev)/self.d_c0
+        d_c_prev = np.linalg.norm(self.prev_obs[0:2]-self.c_star)
+        x0s,x1s,x2s = self.truck.getShapes(self.c,self.theta)
+        d_wall = self.parkingLot.minDistance(x0s,x1s,x2s)
+        rew_c = -(d_c)/self.d_c0
         rew_theta = -(d_theta/np.pi)
         rew_truck = self.truck.getReward(action)
-        rew_wall = 0# TODO penalize when too close to wall
+        rew_wall = 0
+        if d_wall <= self.wallPenaltyThreshold:
+            rew_wall = -(1+self.wallPenaltyThreshold)/(1+d_wall)#penalize when too close to wall
         return -self.time_penalty+np.dot([rew_c,rew_theta,rew_truck,rew_wall],self.reward_weights)
     
     # T(s,a) with s being self and a == array([dx,alpha]), modify self's variables and return nothing
-    def _transition(self,action:int):
+    def _transition(self,action:float) -> tuple[bool,float]:
         # extract actions
         self.alpha += (2*action-1)*self.deltaSteerAngle
         self.alpha = max(-self.maxSteerAngle,min(self.maxSteerAngle,self.alpha))
@@ -261,10 +262,43 @@ class TruckSteeringEnv(gym.Env):
             pygame.display.quit()
             pygame.quit()
 
+class TruckSteeringEnvCts(TruckSteeringEnv):
+    def __init__(self, render_mode=None, direction = None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
+        super().__init__(render_mode, direction, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
+        self.action_space = spaces.Box(-self.maxSteerAngle,self.maxSteerAngle)
+
+    def _transition(self, action):
+        # extract actions
+        self.alpha += action[0]
+        self.alpha = max(-self.maxSteerAngle,min(self.maxSteerAngle,self.alpha))
+
+        # update c and theta, truck updates its own params
+        t = 0
+        truck_trajectory = [[],[],[]]
+        halfway_done = False
+        while t<self.timePerStep:
+            self.c,self.theta = self.truck.transition(self.c,self.theta,self.direction,self.alpha,self.speed,self.h)
+            t += self.h
+
+            # detect halfway collisions. May be modified to detect halfway success
+            x0s,x1s,x2s = self.truck.getShapes(self.c,self.theta)
+            for i in range(x0s.shape[0]):
+                truck_trajectory[0].append(x0s[i])
+                truck_trajectory[1].append(x1s[i])
+                truck_trajectory[2].append(x2s[i])
+            halfway_done = self.truck.isCollision()
+
+            # for plotting
+            if self.render_mode == "human":
+                self._render_frame()
+
+        halfway_done = self.parkingLot.isCollision(np.array(truck_trajectory[0]),np.array(truck_trajectory[1]),np.array(truck_trajectory[2]))
+        halfway_reward = self.collisionReward
+        return halfway_done, halfway_reward
 
 class TruckSteeringForwardEnv(TruckSteeringEnv):
     '''
-    In this environment, the truck simply needs to drive straightly forward for 1 meter to success
+    In this environment, the truck simply needs to drive straightly forward for to success
     it is used to test the validity of the naive training case
     '''
 
@@ -276,8 +310,8 @@ class TruckSteeringForwardEnv(TruckSteeringEnv):
     c_tol = 1.5 # tolerance in meters of manhattan distance
     theta_tol = np.pi/6 # tolerance in radial
 
-    def __init__(self, render_mode=None):
-        super().__init__(render_mode)
+    def __init__(self, render_mode=None, direction = None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
+        super().__init__(render_mode, direction, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
         self.parkingLot:ParkingLot = LongParkingLot(self.xmax,self.ymax,self.c_star,self.theta_star)
 
     def reset(self, seed=None, options=None) -> tuple[dict,dict]:
@@ -297,4 +331,38 @@ class TruckSteeringForwardEnv(TruckSteeringEnv):
             self._render_frame()
         
         return obs, {}
+    
+class TruckSteeringForwardEnvCts(TruckSteeringForwardEnv):
+    def __init__(self, render_mode=None, direction = None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
+        super().__init__(render_mode, direction, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
+        self.action_space = spaces.Box(-self.maxSteerAngle,self.maxSteerAngle)
+
+    def _transition(self, action):
+        # extract actions
+        self.alpha += action[0]
+        self.alpha = max(-self.maxSteerAngle,min(self.maxSteerAngle,self.alpha))
+
+        # update c and theta, truck updates its own params
+        t = 0
+        truck_trajectory = [[],[],[]]
+        halfway_done = False
+        while t<self.timePerStep:
+            self.c,self.theta = self.truck.transition(self.c,self.theta,self.direction,self.alpha,self.speed,self.h)
+            t += self.h
+
+            # detect halfway collisions. May be modified to detect halfway success
+            x0s,x1s,x2s = self.truck.getShapes(self.c,self.theta)
+            for i in range(x0s.shape[0]):
+                truck_trajectory[0].append(x0s[i])
+                truck_trajectory[1].append(x1s[i])
+                truck_trajectory[2].append(x2s[i])
+            halfway_done = self.truck.isCollision()
+
+            # for plotting
+            if self.render_mode == "human":
+                self._render_frame()
+
+        halfway_done = self.parkingLot.isCollision(np.array(truck_trajectory[0]),np.array(truck_trajectory[1]),np.array(truck_trajectory[2]))
+        halfway_reward = self.collisionReward
+        return halfway_done, halfway_reward
     
