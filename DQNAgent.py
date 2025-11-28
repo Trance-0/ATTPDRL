@@ -6,7 +6,7 @@ import joblib
 
 
 # initialize environment
-env = TruckSteeringForwardEnv(render_mode='rgb_array')
+env = TruckSteeringBackwardEnv(render_mode='rgb_array')
 env.setParams(reward_weights = np.array([2,0.5,0.5,0.5]),
               time_penalty=0.01,
               collisionReward=-100,
@@ -15,8 +15,8 @@ env.setParams(reward_weights = np.array([2,0.5,0.5,0.5]),
 # train agent
 model = DQN("MlpPolicy", env, verbose=1,exploration_fraction=0.5)
 model.learn(total_timesteps=50000,log_interval=4)
-model.save('DQN_truck_agent') # save the trained agent as 'DQN_truck_agent'
-joblib.dump(env,'DQN_simple_env.pkl')
+model.save('DQN_truck_agent_back') # save the trained agent as 'DQN_truck_agent'
+joblib.dump(env,'DQN_simple_env_back.pkl')
 
 # print learned rewards
 mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)

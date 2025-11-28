@@ -1,6 +1,6 @@
 from envs.truckSteeringEnv import *
 
-env = TruckSteeringForwardEnv(render_mode='human')
+env = TruckSteeringBackwardEnv(render_mode='human')
 episode_over = False
 total_reward = 0
 

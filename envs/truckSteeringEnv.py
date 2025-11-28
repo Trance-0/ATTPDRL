@@ -209,7 +209,7 @@ class TruckSteeringEnv(gym.Env):
         x0s,x1s,x2s = self.truck.getShapes(self.c,self.theta)
         collision = self.truck.isCollision() or self.parkingLot.isCollision(x0s,x1s,x2s)
         truncated = self.steps > self.maxSteps
-        success = np.sum(np.abs(self.c-self.c_star)) < self.c_tol and abs(self.theta-self.theta_star) < self.theta_tol
+        success = np.sum(np.abs(self.c-self.c_star)) < self.c_tol and min(abs(self.theta-self.theta_star),np.pi*2-abs(self.theta-self.theta_star)) < self.theta_tol
 
         # extra reward is given if collision or success
         extraReward = 0
@@ -310,8 +310,8 @@ class TruckSteeringForwardEnv(TruckSteeringEnv):
     c_tol = 1.5 # tolerance in meters of manhattan distance
     theta_tol = np.pi/6 # tolerance in radial
 
-    def __init__(self, render_mode=None, direction = None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
-        super().__init__(render_mode, direction, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
+    def __init__(self, render_mode=None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
+        super().__init__(render_mode, 1, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
         self.parkingLot:ParkingLot = LongParkingLot(self.xmax,self.ymax,self.c_star,self.theta_star)
 
     def reset(self, seed=None, options=None) -> tuple[dict,dict]:
@@ -331,7 +331,41 @@ class TruckSteeringForwardEnv(TruckSteeringEnv):
             self._render_frame()
         
         return obs, {}
-    
+
+class TruckSteeringBackwardEnv(TruckSteeringEnv):
+    timePerStep = 0.1
+
+    # target location and facing 
+    c_star = np.array([29,35])
+    theta_star = np.pi
+    c_tol = 1.5 # tolerance in meters of manhattan distance
+    theta_tol = np.pi/6 # tolerance in radial
+
+    def __init__(self, render_mode=None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
+        super().__init__(render_mode, -1, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
+        self.parkingLot:ParkingLot = LongParkingLot(self.xmax,self.ymax,self.c_star,self.theta_star)
+
+    def reset(self, seed=None, options=None) -> tuple[dict,dict]:
+        super().reset(seed=seed)
+
+        self.c = np.array([6,35])
+        self.theta = np.pi
+        self.alpha = 0
+        self.truck.reset()
+        self.steps = 0
+        obs = self._get_obs()
+        self.prev_obs = obs
+        self.d_c0 = np.linalg.norm(self.c-self.c_star)
+
+        # for plotting
+        if self.render_mode == "human":
+            self._render_frame()
+        
+        return obs, {}
+
+
+
+
 class TruckSteeringForwardEnvCts(TruckSteeringForwardEnv):
     def __init__(self, render_mode=None, direction = None, reward_weights = None, time_penalty = None, collisionReward = None, successReward = None, maxSteps = None):
         super().__init__(render_mode, direction, reward_weights, time_penalty, collisionReward, successReward, maxSteps)
