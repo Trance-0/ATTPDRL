@@ -8,6 +8,7 @@ References:
 
 import numpy as np
 
+from envs.truckSteeringEnv import *
 from envs.truckParkingEnv import TruckParkingEnvDiscrete
 
 from stable_baselines3 import PPO
@@ -19,7 +20,7 @@ from utils import get_agent_save_path, set_logger
 from collections import defaultdict
 
 # parameter used to store the trained agent
-TASK_NAME = "PPO_truck_agent_default_param_1M"
+TASK_NAME = "PPO_truck_agent_default_param_env_new_1M"
 TOTAL_TIMESTEPS = 10**6
 
 logger = set_logger(TASK_NAME)
@@ -27,7 +28,8 @@ logger = set_logger(TASK_NAME)
 if __name__ == "__main__":
     # env = TruckParkingEnvBoxSpace(render_mode='human')
     # env = TruckParkingEnvBoxSpace(render_mode='rgb_array',mode='simple')
-    env = TruckParkingEnvDiscrete(render_mode='rgb_array')
+    # env = TruckParkingEnvDiscrete(render_mode='rgb_array')
+    env = TruckSteeringForwardEnv(render_mode='rgb_array')
     # env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
     #             time_penalty=0.01,
     #             collisionReward=-100,

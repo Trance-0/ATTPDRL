@@ -9,7 +9,7 @@ Reference:
 from collections import defaultdict
 import numpy as np
 
-from envs.truckParkingEnv import TruckParkingEnv
+from envs.truckSteeringEnv import *
 from envs.parkingLot import EmptyParkingLot, ParkingLot
 
 from stable_baselines3 import DDPG

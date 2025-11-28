@@ -1,27 +1,27 @@
 import numpy as np
-from envs.truckParkingEnv import *
-from stable_baselines3 import TD3
+from envs.truckSteeringEnv import *
+from stable_baselines3 import DQN
 from stable_baselines3.common.evaluation import evaluate_policy
 import joblib
 
 from utils import get_agent_save_path, set_logger
 
 # parameter used to store the trained agent
-TASK_NAME = "TD3_truck_agent_default_param_env_new_1M"
+TASK_NAME = "DQN_truck_agent_default_param_1M"
 TOTAL_TIMESTEPS = 10**6
 
+
 # initialize environment
-# env = VeryVerySimpleTruckParkingEnvContinuous(render_mode='rgb_array')
-env = TruckParkingEnvContinuous(render_mode='rgb_array')
-# env.setParams(reward_weights = np.array([0.01,1.5,2,0.5]),
+env = TruckSteeringForwardEnv(render_mode='rgb_array')
+# env.setParams(reward_weights = np.array([2,0.5,0.5,0.5]),
 #               time_penalty=0.01,
 #               collisionReward=-100,
 #               successReward=100,
 #               maxSteps=200)
 # train agent
-model = TD3("MultiInputPolicy", env, verbose=1, tensorboard_log='./tensorboard_logs',device='cuda')
-model.learn(total_timesteps=TOTAL_TIMESTEPS, log_interval=10, progress_bar=True)
-model.save(get_agent_save_path(TASK_NAME))
+model = DQN("MlpPolicy", env, verbose=1,exploration_fraction=0.5,tensorboard_log='./tensorboard_logs',device='cuda')
+model.learn(total_timesteps=TOTAL_TIMESTEPS,log_interval=4,progress_bar=True)
+model.save(get_agent_save_path(TASK_NAME)) # save the trained agent as 'DQN_truck_agent'
 joblib.dump(env,get_agent_save_path(f'{TASK_NAME}_env.pkl'))
 
 # print learned rewards
