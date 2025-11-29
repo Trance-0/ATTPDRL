@@ -2,8 +2,8 @@ from stable_baselines3 import *
 from stable_baselines3.common.evaluation import evaluate_policy
 import joblib
 
-env = joblib.load('DQN_simple_env.pkl') # for unknowm reasons, the environment must be saved after training and reloaded this way
-model = DQN.load("DQN_truck_agent.zip",env=env)
+env = joblib.load('./agents/DQN_truck_agen_1M_env.pkl') # for unknowm reasons, the environment must be saved after training and reloaded this way
+model = DQN.load("./agents/DQN_truck_agen_1M",env=env)
 
 # print learned rewards
 # mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)

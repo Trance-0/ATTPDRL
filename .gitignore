@@ -21,3 +21,6 @@ tensorboard_logs/
 # ignore dump on root directory
 /*.pkl
 /*.zip
+
+# ignore modified training script
+*_train.py
