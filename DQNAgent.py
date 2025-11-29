@@ -6,7 +6,7 @@ import joblib
 
 
 # initialize environment
-env = TruckSteeringBackwardEnv(render_mode='rgb_array')
+env = TruckSteeringForwardTurnEnv(render_mode='rgb_array')
 env.setParams(reward_weights = np.array([2,0.5,0.5,0.5]),
               time_penalty=0.01,
               collisionReward=-100,

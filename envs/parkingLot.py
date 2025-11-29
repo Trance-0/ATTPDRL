@@ -146,3 +146,15 @@ class LongParkingLot(VerticalParkingLot):
         super().__init__(xm, ym, c_s, theta_s)
         # in this case, we have empty parking lot
         self.x1 = xm
+
+class TurnParkingLot(VerticalParkingLot):
+    x0 = 30
+    x1 = 40
+    x2 = 40
+    y0 = 30
+    y1 = 40
+
+    def __init__(self, xm, ym, c_s, theta_s):
+        super().__init__(xm, ym, c_s, theta_s)
+        # in this case, we have empty parking lot
+        self.x1 = xm
