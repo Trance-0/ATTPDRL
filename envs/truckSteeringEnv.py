@@ -399,7 +399,7 @@ class TruckSteeringBackwardEnv(TruckSteeringEnv):
         
         return obs, {}
     
-class TruckSteeringBackwardEnv(TruckSteeringEnv):
+class TruckSteeringBackwardTurnEnv(TruckSteeringEnv):
     timePerStep = 0.1
 
     # target location and facing 
