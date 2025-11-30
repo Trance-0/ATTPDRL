@@ -148,10 +148,10 @@ class LongParkingLot(VerticalParkingLot):
         self.x1 = xm
 
 class TurnParkingLot(VerticalParkingLot):
-    x0 = 30
+    x0 = 25
     x1 = 40
     x2 = 40
-    y0 = 30
+    y0 = 25
     y1 = 40
 
     def __init__(self, xm, ym, c_s, theta_s):
